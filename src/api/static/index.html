@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polymarket Arbitrage Agent - Monitoring Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>🎯 Polymarket Arbitrage Agent</h1>
+            <div class="status-badge" id="connection-status">
+                <span class="status-dot"></span>
+                <span class="status-text">Connecting...</span>
+            </div>
+        </header>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+            <!-- Status Panel -->
+            <div class="panel status-panel">
+                <h2>System Status</h2>
+                <div class="status-content">
+                    <div class="status-item">
+                        <span class="status-label">Uptime</span>
+                        <span class="status-value" id="uptime">Loading...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Cycles Completed</span>
+                        <span class="status-value" id="cycles-completed">Loading...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Current Status</span>
+                        <span class="status-value" id="worker-status">Loading...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Database</span>
+                        <span class="status-value" id="db-status">Loading...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Total Alerts</span>
+                        <span class="status-value" id="total-alerts">Loading...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Total Opportunities</span>
+                        <span class="status-value" id="total-opportunities">Loading...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerts Panel -->
+            <div class="panel alerts-panel">
+                <div class="panel-header">
+                    <h2>Recent Alerts</h2>
+                    <button class="refresh-btn" id="refresh-alerts">🔄 Refresh</button>
+                </div>
+                <div class="alerts-list" id="alerts-list">
+                    <div class="loading">Loading alerts...</div>
+                </div>
+            </div>
+
+            <!-- Metrics Panel -->
+            <div class="panel metrics-panel">
+                <h2>Performance Metrics</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Avg Cycle Duration</div>
+                        <div class="metric-value" id="avg-duration">Loading...</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Avg Opportunities/Cycle</div>
+                        <div class="metric-value" id="avg-opportunities">Loading...</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Avg Alerts/Cycle</div>
+                        <div class="metric-value" id="avg-alerts">Loading...</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Total Errors</div>
+                        <div class="metric-value error-count" id="total-errors">Loading...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Panel -->
+            <div class="panel charts-panel">
+                <h2>Analytics</h2>
+                <div class="charts-container">
+                    <div class="chart-wrapper">
+                        <canvas id="opportunities-chart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="severity-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Last updated: <span id="last-update">Loading...</span></p>
+            <p>Version 1.0.0 | Polymarket Arbitrage Agent</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script src="/static/charts.js"></script>
+</body>
+</html>
