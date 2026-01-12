@@ -102,26 +102,13 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     )
 
 
-# Startup and shutdown events
-@app.on_event("startup")
-async def startup_event():
-    """Initialize application on startup."""
-    logger.info("api_startup")
-
-    # Set web server running status
-    service_state = get_service_state()
-    service_state.set_web_server_running(True)
-
-    # Note: Database is initialized by the entrypoint script before startup
-    # We don't initialize it here to avoid blocking the web server startup
-
-
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup on shutdown."""
     logger.info("api_shutdown")
 
     # Set web server running status
+    from src.utils.shared_state import get_service_state
     service_state = get_service_state()
     service_state.set_web_server_running(False)
 
