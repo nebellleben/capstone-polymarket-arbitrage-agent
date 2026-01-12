@@ -3,7 +3,9 @@ set -e
 
 echo "Starting Polymarket Arbitrage Agent..."
 echo "Environment: $ENVIRONMENT"
-echo "Web Server Port: ${WEB_SERVER_PORT:-8080}"
+# Use Railway's PORT if set, otherwise fall back to WEB_SERVER_PORT or 8080
+export WEB_SERVER_PORT=${PORT:-${WEB_SERVER_PORT:-8080}}
+echo "Web Server Port: $WEB_SERVER_PORT"
 
 # Trap signals for graceful shutdown
 cleanup() {
