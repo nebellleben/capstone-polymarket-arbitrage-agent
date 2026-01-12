@@ -1,16 +1,24 @@
 """
-Polymarket API client for interacting with Gamma and CLOB APIs.
+Polymarket Gamma API client for market data.
 
-This module provides a unified interface for querying market data and executing trades.
+This module provides an async client for querying market data from Polymarket's Gamma API.
 """
 
-import os
-from typing import Any
+import asyncio
 import logging
+from datetime import datetime
+from typing import Any, Optional
 
 import httpx
-from pydantic import BaseModel
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type
+)
 
+from src.models.market import Market, MarketData
+from src.utils.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -21,64 +29,132 @@ class PolymarketClientError(Exception):
     pass
 
 
-class MarketData(BaseModel):
-    """Market data model."""
-
-    market_id: str
-    question: str
-    description: str
-    end_date: str | None
-    active: bool
-
-
-class PriceData(BaseModel):
-    """Price data model."""
-
-    token_id: str
-    price: float
-    side: str  # "buy" or "sell"
-
-
-class OrderBook(BaseModel):
-    """Order book data model."""
-
-    token_id: str
-    bids: list[dict]
-    asks: list[dict]
-
-
-class PolymarketClient:
+class PolymarketGammaClient:
     """
-    Client for interacting with Polymarket APIs.
+    Client for Polymarket Gamma API with rate limiting and retry logic.
 
-    This client provides methods to:
-    - Query market data from Gamma API
-    - Fetch current prices and order books
-    - Execute trades via CLOB API
+    This client provides async methods to:
+    - Fetch active markets
+    - Get current prices for tokens
+    - Fetch order books
     """
 
-    def __init__(self):
-        """Initialize the Polymarket client."""
-        self.gamma_host = os.getenv(
-            "POLYMARKET_GAMMA_HOST", "gamma-api.polymarket.com"
-        )
-        self.clob_host = os.getenv("POLYMARKET_CLOB_HOST", "api.polymarket.com")
-        self.api_key = os.getenv("POLYMARKET_API_KEY", "")
-        self.secret_key = os.getenv("POLYMARKET_SECRET_KEY", "")
+    def __init__(
+        self,
+        base_url: Optional[str] = None,
+        timeout: Optional[int] = None,
+        requests_per_second: Optional[int] = None
+    ):
+        """
+        Initialize the Polymarket Gamma client.
 
-        self.http_client = httpx.AsyncClient(
-            base_url=f"https://{self.gamma_host}",
+        Args:
+            base_url: Base URL for Gamma API (defaults to settings)
+            timeout: Request timeout in seconds (defaults to settings)
+            requests_per_second: Rate limit (defaults to settings)
+        """
+        self.base_url = f"https://{base_url or settings.polymarket_gamma_host}"
+        self.timeout = timeout or settings.polymarket_timeout
+        self.rate_limit = requests_per_second or settings.polymarket_rate_limit
+
+        # Rate limiting
+        self.semaphore = asyncio.Semaphore(self.rate_limit)
+        self.request_times: list[float] = []
+
+        # HTTP client
+        self.client: Optional[httpx.AsyncClient] = None
+
+    async def __aenter__(self):
+        """Async context manager entry."""
+        self.client = httpx.AsyncClient(
+            base_url=self.base_url,
+            timeout=self.timeout,
             headers={
                 "User-Agent": "PolymarketArbitrageAgent/0.1.0",
-            },
+                "Accept": "application/json"
+            }
         )
+        return self
 
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        if self.client:
+            await self.client.aclose()
+
+    async def _request(
+        self,
+        method: str,
+        endpoint: str,
+        params: Optional[dict[str, Any]] = None,
+        **kwargs
+    ) -> dict[str, Any]:
+        """
+        Make rate-limited HTTP request with retry logic.
+
+        Args:
+            method: HTTP method
+            endpoint: API endpoint
+            params: Query parameters
+            **kwargs: Additional arguments for httpx
+
+        Returns:
+            Response JSON as dict
+
+        Raises:
+            PolymarketClientError: If request fails after retries
+        """
+        async with self.semaphore:
+            # Enforce rate limit
+            now = asyncio.get_event_loop().time()
+            self.request_times = [t for t in self.request_times if now - t < 1.0]
+
+            if len(self.request_times) >= self.rate_limit:
+                sleep_time = 1.0 - (now - self.request_times[0])
+                if sleep_time > 0:
+                    await asyncio.sleep(sleep_time)
+                self.request_times = []
+
+            self.request_times.append(now)
+
+            # Make request with retry
+            try:
+                url = f"{endpoint.lstrip('/')}"
+                logger.debug("api_request", method=method, endpoint=url, params=params)
+
+                response = await self.client.request(
+                    method,
+                    url,
+                    params=params,
+                    **kwargs
+                )
+                response.raise_for_status()
+                return response.json()
+
+            except httpx.HTTPStatusError as e:
+                logger.error(
+                    "http_error",
+                    endpoint=endpoint,
+                    status=e.response.status_code,
+                    response=e.response.text[:200]
+                )
+                raise PolymarketClientError(f"HTTP {e.response.status_code}: {e.response.text}")
+
+            except httpx.NetworkError as e:
+                logger.error("network_error", endpoint=endpoint, error=str(e))
+                raise PolymarketClientError(f"Network error: {e}")
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(PolymarketClientError)
+    )
     async def get_markets(
         self,
         active: bool = True,
         limit: int = 100,
         offset: int = 0,
-    ) -> list[MarketData]:
+        tag: Optional[str] = None
+    ) -> list[Market]:
         """
         Fetch list of markets from Gamma API.
 
@@ -86,31 +162,56 @@ class PolymarketClient:
             active: Filter for active/inactive markets
             limit: Maximum number of markets to return
             offset: Pagination offset
+            tag: Filter by tag
 
         Returns:
-            List of market data objects
+            List of Market objects
 
         Raises:
             PolymarketClientError: If API request fails
         """
         try:
             params = {
-                "active": active,
-                "limit": limit,
-                "offset": offset,
+                "active": str(active).lower(),
+                "limit": min(limit, 100),
+                "offset": offset
             }
 
-            response = await self.http_client.get("/markets", params=params)
-            response.raise_for_status()
+            if tag:
+                params["tag"] = tag
 
-            data = response.json()
-            return [MarketData(**market) for market in data.get("data", [])]
+            data = await self._request("GET", "/markets", params=params)
 
-        except httpx.HTTPError as e:
-            logger.error(f"Error fetching markets: {e}")
-            raise PolymarketClientError(f"Failed to fetch markets: {e}")
+            markets = []
+            for market_data in data.get("data", []):
+                try:
+                    market = Market(
+                        market_id=str(market_data.get("condition_id", "")),
+                        question=market_data.get("question", ""),
+                        description=market_data.get("description", ""),
+                        end_date=self._parse_end_date(market_data),
+                        active=market_data.get("active", True),
+                        yes_token_id=str(market_data.get("outcome_token_id_yes", "")),
+                        no_token_id=str(market_data.get("outcome_token_id_no", "")),
+                        tags=market_data.get("tags", [])
+                    )
+                    markets.append(market)
+                except Exception as e:
+                    logger.warning("failed_to_parse_market", market_id=market_data.get("condition_id"), error=str(e))
 
-    async def get_market(self, market_id: str) -> MarketData:
+            logger.info(
+                "markets_fetched",
+                count=len(markets),
+                active=active
+            )
+
+            return markets
+
+        except Exception as e:
+            logger.error("fetch_markets_error", error=str(e))
+            raise
+
+    async def get_market(self, market_id: str) -> Optional[Market]:
         """
         Fetch details for a specific market.
 
@@ -118,23 +219,34 @@ class PolymarketClient:
             market_id: The market identifier
 
         Returns:
-            Market data object
+            Market object or None if not found
 
         Raises:
             PolymarketClientError: If API request fails
         """
         try:
-            response = await self.http_client.get(f"/markets/{market_id}")
-            response.raise_for_status()
+            data = await self._request("GET", f"/markets/{market_id}")
 
-            data = response.json()
-            return MarketData(**data["data"])
+            market_data = data.get("data", {})
+            market = Market(
+                market_id=str(market_data.get("condition_id", market_id)),
+                question=market_data.get("question", ""),
+                description=market_data.get("description", ""),
+                end_date=self._parse_end_date(market_data),
+                active=market_data.get("active", True),
+                yes_token_id=str(market_data.get("outcome_token_id_yes", "")),
+                no_token_id=str(market_data.get("outcome_token_id_no", "")),
+                tags=market_data.get("tags", [])
+            )
 
-        except httpx.HTTPError as e:
-            logger.error(f"Error fetching market {market_id}: {e}")
-            raise PolymarketClientError(f"Failed to fetch market: {e}")
+            return market
 
-    async def get_price(self, token_id: str, side: str = "buy") -> PriceData:
+        except PolymarketClientError as e:
+            if "404" in str(e):
+                return None
+            raise
+
+    async def get_price(self, token_id: str, side: str = "buy") -> float:
         """
         Fetch current price for a token.
 
@@ -143,28 +255,81 @@ class PolymarketClient:
             side: "buy" or "sell" side
 
         Returns:
-            Price data object
+            Current price (0.0-1.0)
 
         Raises:
             PolymarketClientError: If API request fails
         """
         try:
-            params = {"side": side}
-            response = await self.http_client.get(f"/price/{token_id}", params=params)
-            response.raise_for_status()
+            data = await self._request("GET", f"/price/{token_id}", params={"side": side})
+            price = float(data.get("price", 0.0))
 
-            data = response.json()
-            return PriceData(
+            logger.debug(
+                "price_fetched",
                 token_id=token_id,
-                price=data["price"],
                 side=side,
+                price=price
             )
 
-        except httpx.HTTPError as e:
-            logger.error(f"Error fetching price for {token_id}: {e}")
-            raise PolymarketClientError(f"Failed to fetch price: {e}")
+            return price
 
-    async def get_order_book(self, token_id: str) -> OrderBook:
+        except Exception as e:
+            logger.error(
+                "fetch_price_error",
+                token_id=token_id,
+                side=side,
+                error=str(e)
+            )
+            raise
+
+    async def get_market_data(self, market: Market) -> MarketData:
+        """
+        Fetch current price data for a market.
+
+        Args:
+            market: Market object
+
+        Returns:
+            MarketData with YES and NO prices
+
+        Raises:
+            PolymarketClientError: If API request fails
+        """
+        try:
+            yes_price = await self.get_price(market.yes_token_id, "buy")
+            no_price = await self.get_price(market.no_token_id, "buy")
+
+            # Normalize prices (YES + NO should equal ~1.0)
+            total = yes_price + no_price
+            if total > 0:
+                yes_price = yes_price / total
+                no_price = no_price / total
+
+            market_data = MarketData(
+                market_id=market.market_id,
+                yes_price=yes_price,
+                no_price=no_price,
+                timestamp=datetime.utcnow()
+            )
+
+            logger.debug(
+                "market_data_fetched",
+                market_id=market.market_id,
+                yes_price=yes_price,
+                no_price=no_price
+            )
+
+            return market_data
+
+        except Exception as e:
+            logger.error(
+                "fetch_market_data_error",
+                market_id=market.market_id,
+                error=str(e)
+            )
+            raise
+
+    async def get_order_book(self, token_id: str) -> dict[str, list]:
         """
         Fetch order book for a token.
 
@@ -172,34 +337,36 @@ class PolymarketClient:
             token_id: The token identifier
 
         Returns:
-            Order book data object
+            Dictionary with 'bids' and 'asks' lists
 
         Raises:
             PolymarketClientError: If API request fails
         """
         try:
-            response = await self.http_client.get(f"/book/{token_id}")
-            response.raise_for_status()
+            data = await self._request("GET", f"/book/{token_id}")
 
-            data = response.json()
-            return OrderBook(
+            return {
+                "bids": data.get("bids", []),
+                "asks": data.get("asks", [])
+            }
+
+        except Exception as e:
+            logger.error(
+                "fetch_order_book_error",
                 token_id=token_id,
-                bids=data.get("bids", []),
-                asks=data.get("asks", []),
+                error=str(e)
             )
+            raise
 
-        except httpx.HTTPError as e:
-            logger.error(f"Error fetching order book for {token_id}: {e}")
-            raise PolymarketClientError(f"Failed to fetch order book: {e}")
-
-    async def close(self):
-        """Close the HTTP client."""
-        await self.http_client.aclose()
-
-    async def __aenter__(self):
-        """Async context manager entry."""
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit."""
-        await self.close()
+    def _parse_end_date(self, market_data: dict[str, Any]) -> Optional[datetime]:
+        """Parse end date from market data."""
+        end_timestamp = market_data.get("end_date")
+        if end_timestamp:
+            try:
+                # Convert milliseconds to seconds if needed
+                if end_timestamp > 1000000000000:  # Milliseconds
+                    end_timestamp = end_timestamp / 1000
+                return datetime.fromtimestamp(end_timestamp)
+            except (ValueError, OSError):
+                return None
+        return None
