@@ -1,514 +1,497 @@
-# Polymarket "Narrative vs. Reality" Arbitrage Agent
+# Polymarket Arbitrage Agent - Development Constitution
 
-## Project Overview
+## Project Identity
 
-This project implements an autonomous arbitrage detection system that identifies when breaking news should move Polymarket prices before the market actually updates. The system uses AI-powered reasoning to detect "narrative vs. reality" discrepancies and capitalize on information asymmetries.
+This is an **autonomous arbitrage detection system** for Polymarket prediction markets. The project uses AI to identify "narrative vs. reality" discrepancies - where breaking news should move market prices but hasn't yet.
 
-### Core Value Proposition
+### Core Philosophy
 
-**The Problem**: Polymarket prices often lag behind breaking news due to human reaction time and manual market updates. This creates arbitrage opportunities where information from news events isn't immediately reflected in market prices.
+**Speed and Automation**: The system must execute the "Search → Reason → Compare → Execute" loop in seconds, not minutes. Every component should be optimized for minimal latency.
 
-**The Solution**: An automated system that:
-1. Continuously monitors breaking news via Brave Search MCP
-2. Uses Sequential Thinking MCP for deep reasoning on market impact
-3. Queries Polymarket Gamma API for current market prices
-4. Identifies discrepancies where news should move prices but hasn't yet
-5. Executes trades or alerts on profitable opportunities
+**Multi-Agent First**: All development happens through the 7-agent system. No code should be written without the appropriate agent's involvement.
 
-**Why It Works**: The system moves faster than human traders by automating the "Search → Reason → Compare → Execute" loop in seconds rather than minutes or hours.
+**Testing as Documentation**: Tests are the primary source of truth for system behavior. When implementing features, write tests first that describe expected behavior.
 
-## Technology Stack
+### Project Goals
+
+1. **Detect arbitrage opportunities faster than human traders**
+2. **Use AI reasoning to assess market impact of breaking news**
+3. **Execute trades automatically when confidence thresholds are met**
+4. **Provide transparency through detailed logging and metrics**
+
+### Non-Goals
+
+- Building a general trading bot (focus only on news-driven arbitrage)
+- Predicting market movements (only detect mispricings)
+- UI/frontend development (this is a backend system)
+
+## Technology Stack & Rationale
 
 ### Core Technologies
-- **Python 3.11+**: Primary implementation language
-- **LangGraph**: Workflow orchestration and agent coordination
-- **Polymarket Gamma API**: Real-time market data and trading
-- **Polymarket CLOB API**: Order placement and execution
+
+- **Python 3.11+**: Chosen for async/await support, strong typing, and extensive ML/AI ecosystem
+- **LangGraph**: Workflow orchestration - enables stateful, multi-step AI reasoning
+- **Polymarket Gamma API**: Real-time market data - fastest source of price information
+- **Polymarket CLOB API**: Order execution - direct market access
 
 ### AI/ML Integration
-- **Claude Code**: Development environment with multi-agent system
-- **Brave Search MCP**: Real-time news retrieval and monitoring
+
+- **Claude Code**: Development environment with multi-agent skills
+- **Brave Search MCP**: Real-time news retrieval - fastest breaking news source
 - **Sequential Thinking MCP**: Deep reasoning on news-to-market impact
 
-### Infrastructure
-- **Docker**: Containerization for consistency
-- **GitHub Actions**: CI/CD pipeline
-- **Pytest**: Testing framework
-- **PostgreSQL/SQLite**: Database (dev/prod support)
+### Architecture Decisions
 
-## Multi-Agent System Architecture
+**Why LangGraph over custom workflow engine?**
+- Built-in state management
+- Visual debugging capabilities
+- Native integration with LangChain ecosystem
+- Easier to iterate on prompt chains
 
-This project uses **7 specialized AI agents** implemented as Claude Code Skills. Each agent has autonomous capabilities and can generate complete artifacts independently.
+**Why async/await throughout?**
+- I/O-bound operations (API calls, database queries)
+- Need to monitor multiple news sources concurrently
+- Performance critical for arbitrage opportunities
 
-### Agent Roles
+**Why separate Gamma and CLOB clients?**
+- Gamma: Read-only market data (no auth required for public endpoints)
+- CLOB: Write operations (requires signing, more complex auth)
+- Separation of concerns enables better error handling
+
+## Multi-Agent System
+
+### Agent Responsibilities
+
+This project uses **7 specialized AI agents**. Each has autonomous decision-making authority within their domain.
 
 #### 1. Product Manager (`/product-manager`)
-- **Skill**: Define requirements, prioritize features, create PRDs
-- **When to invoke**: "Define user stories", "Create PRD", "Prioritize backlog"
-- **Output**: Product specifications, roadmaps, acceptance criteria
+**Authority**: Feature requirements and priorities
+**Responsibilities**:
+- Create PRDs for new features
+- Define acceptance criteria
+- Prioritize backlog items
+- Validate implementations against requirements
+
+**When to invoke**: "Define requirements", "Create PRD", "Prioritize features"
+
+**Outputs**: Product specs, user stories, roadmaps
 
 #### 2. System Designer (`/system-designer`)
-- **Skill**: Design architecture, define schemas, create API specs
-- **When to invoke**: "Design architecture", "Create API spec", "Define data model"
-- **Output**: Architecture diagrams, OpenAPI specs, ADRs
+**Authority**: Architecture and data models
+**Responsibilities**:
+- Design system architecture
+- Define API contracts (OpenAPI specs)
+- Create data models and schemas
+- Document architectural decisions (ADRs)
+
+**When to invoke**: "Design architecture", "Create API spec", "Define data model"
+
+**Outputs**: Architecture diagrams, OpenAPI specs, ADRs
 
 #### 3. Developer (`/developer`)
-- **Skill**: Implement features, write code, integrate APIs
-- **When to invoke**: "Implement feature", "Write code", "Integrate API"
-- **Output**: Python modules, LangGraph workflows, tests
+**Authority**: Implementation and code quality
+**Responsibilities**:
+- Implement features according to specs
+- Write clean, tested code
+- Follow project coding standards
+- Integrate APIs and MCP servers
+
+**When to invoke**: "Implement feature", "Write code", "Integrate API"
+
+**Outputs**: Python modules, LangGraph workflows, tests
 
 #### 4. QA/Test Engineer (`/qa-test-engineer`)
-- **Skill**: Design tests, ensure quality, validate functionality
-- **When to invoke**: "Create test plan", "Test this feature", "Quality check"
-- **Output**: Test suites, test reports, coverage metrics
+**Authority**: Quality assurance and testing strategy
+**Responsibilities**:
+- Design test plans and test cases
+- Ensure >80% code coverage
+- Validate functionality against requirements
+- Create and maintain test fixtures
 
-#### 5. DevOps Engineer (`/devops-engineer`)
-- **Skill**: Configure deployment, set up CI/CD, manage infrastructure
-- **When to invoke**: "Deploy this", "Set up CI/CD", "Containerize app"
-- **Output**: Docker configs, CI/CD pipelines, deployment docs
+**When to invoke**: "Create test plan", "Test this feature", "Quality check"
 
-#### 6. Security Analyst (`/security-analyst`)
-- **Skill**: Review security, identify vulnerabilities, audit code
-- **When to invoke**: "Security review", "Check vulnerabilities", "Audit code"
-- **Output**: Security reports, policies, remediation steps
+**Outputs**: Test suites, test reports, coverage metrics
+
+#### 5. Security Analyst (`/security-analyst`)
+**Authority**: Security and vulnerability management
+**Responsibilities**:
+- Review code for security vulnerabilities
+- Ensure API key safety
+- Validate input handling
+- Conduct regular security audits
+
+**When to invoke**: "Security review", "Check vulnerabilities", "Audit code"
+
+**Outputs**: Security reports, policies, remediation steps
+
+#### 6. DevOps Engineer (`/devops-engineer`)
+**Authority**: Deployment and infrastructure
+**Responsibilities**:
+- Configure deployment pipelines
+- Set up CI/CD
+- Manage infrastructure (Docker, cloud)
+- Ensure system scalability
+
+**When to invoke**: "Deploy this", "Set up CI/CD", "Containerize app"
+
+**Outputs**: Docker configs, CI/CD pipelines, deployment docs
 
 #### 7. Data Analyst (`/data-analyst`)
-- **Skill**: Analyze performance, track metrics, generate insights
-- **When to invoke**: "Analyze performance", "Create dashboard", "Track metrics"
-- **Output**: Metrics dashboards, performance reports, insights
+**Authority**: Performance tracking and insights
+**Responsibilities**:
+- Track system performance metrics
+- Monitor arbitrage detection accuracy
+- Generate performance dashboards
+- Analyze trading results
 
-### How Agents Collaborate
+**When to invoke**: "Analyze performance", "Create dashboard", "Track metrics"
 
-Agents work iteratively through a structured workflow:
+**Outputs**: Metrics dashboards, performance reports, insights
 
-```
-Product Manager → System Designer → Developer → QA → Security → DevOps → Data Analyst → Iterate
-```
+### Agent Collaboration Flow
 
-**Example Workflow**:
-1. User: "Create a feature to monitor election news"
-2. Product Manager generates PRD and user stories
-3. System Designer creates architecture and API specs
-4. Developer implements the feature with tests
-5. QA validates functionality
-6. Security reviews for vulnerabilities
-7. DevOps deploys to staging
-8. Data Analyst tracks performance metrics
-9. Product Manager validates against requirements
-10. Iterate based on feedback
-
-## System Architecture
-
-### High-Level Design
+Standard feature development follows this pipeline:
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│                    Arbitrage Detection System              │
-└────────────────────────────────────────────────────────────┘
-                            │
-        ┌───────────────────┼───────────────────┐
-        │                   │                   │
-        ▼                   ▼                   ▼
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   News      │     │  Reasoning  │     │   Market    │
-│  Monitoring │────▶│   Engine    │────▶│  Analysis   │
-│ (Brave MCP) │     │ (Seq. Think)│     │ (Gamma API) │
-└─────────────┘     └─────────────┘     └─────────────┘
-        │                   │                   │
-        └───────────────────┼───────────────────┘
-                            ▼
-                   ┌─────────────┐
-                   │ Arbitrage   │
-                   │ Detection   │
-                   │   Engine    │
-                   └─────────────┘
-                            │
-                ┌───────────┴───────────┐
-                ▼                       ▼
-         ┌─────────────┐         ┌─────────────┐
-         │   Trade     │         │    Alert    │
-         │ Execution   │         │ Generation  │
-         └─────────────┘         └─────────────┘
+Product Manager → System Designer → Developer → QA → Security → DevOps → Data Analyst → (back to Product Manager for validation)
 ```
 
-### Component Details
+**Critical Rules**:
+1. Never skip agents in the pipeline
+2. Each agent must approve before passing to next
+3. Security analyst must review all code before deployment
+4. QA must validate against Product Manager's requirements
+5. Data Analyst tracks metrics to validate Product Manager's assumptions
 
-#### 1. News Monitoring Agent
-- **Purpose**: Continuously fetch breaking news from Brave Search
-- **Input**: Search queries, topic filters
-- **Output**: News articles with timestamps and relevance scores
-- **MCP**: Brave Search MCP
+## Code Standards
 
-#### 2. Reasoning Engine
-- **Purpose**: Analyze news impact on specific markets
-- **Input**: News articles, market descriptions
-- **Output**: Impact assessment, expected price movement
-- **MCP**: Sequential Thinking MCP
+### Python Conventions
 
-#### 3. Market Analysis Module
-- **Purpose**: Fetch current Polymarket prices
-- **Input**: Market IDs, token IDs
-- **Output**: Current prices, order books, spreads
-- **API**: Polymarket Gamma API
+```python
+# Always use type hints
+def fetch_market_data(market_id: str) -> MarketData | None:
+    """Fetch market data from Gamma API.
 
-#### 4. Arbitrage Detection Engine
-- **Purpose**: Compare expected vs. actual prices
-- **Input**: Impact assessments, current prices
-- **Output**: Arbitrage opportunities with confidence scores
+    Args:
+        market_id: The market identifier
 
-#### 5. Trade Execution Module
-- **Purpose**: Execute trades when opportunities identified
-- **Input**: Trade signals, confidence thresholds
-- **Output**: Executed trades, confirmations
-- **API**: Polymarket CLOB API
+    Returns:
+        MarketData object or None if not found
+    """
+    pass
 
-#### 6. Alert Generation Module
-- **Purpose**: Generate human-readable alerts
-- **Input**: Opportunities, trades executed
-- **Output**: Formatted alerts, notifications
+# Use async/await for I/O operations
+async def get_price(token_id: str) -> PriceData:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"/price/{token_id}")
+        return PriceData(**response.json())
 
-## Getting Started
+# Use pydantic for data validation
+from pydantic import BaseModel, Field
 
-### Prerequisites
-
-- Python 3.11+
-- Claude Code CLI installed
-- Polymarket account with API credentials
-- Brave Search MCP configured
-- Sequential Thinking MCP configured
-
-### Setup
-
-1. **Clone the repository**
-   ```bash
-   cd /Users/kelvinchan/dev/capstone-polymarket-arbitrage-agent
-   ```
-
-2. **Install dependencies**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-3. **Configure environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys
-   ```
-
-4. **Set up Claude Code skills**
-   ```bash
-   # Skills are in .claude/skills/
-   # Restart Claude Code to load them
-   ```
-
-5. **Run initial setup**
-   ```bash
-   make setup  # Or ./scripts/setup.sh
-   ```
-
-### Using the Multi-Agent System
-
-The agents are designed to work autonomously. Here's how to use them:
-
-#### Start a New Feature
-
-```
-You: "I want to add a feature to monitor crypto-related markets"
-
-Claude will:
-1. Automatically invoke /product-manager
-2. Generate PRD and user stories
-3. Invoke /system-designer for architecture
-4. Invoke /developer to implement
-5. Continue through the agent pipeline
+class MarketImpact(BaseModel):
+    expected_price_change: float = Field(ge=-1.0, le=1.0)
+    confidence: float = Field(ge=0.0, le=1.0)
+    reasoning: str
 ```
 
-#### Debug an Issue
+### File Organization
 
 ```
-You: "The news monitoring isn't working properly"
-
-Claude will:
-1. Invoke /developer to diagnose
-2. Invoke /qa-test-engineer to create tests
-3. Invoke /data-analyst to review logs
-4. Propose and implement fixes
+src/
+├── agents/          # LangGraph agent implementations
+│   └── <agent_name>.py
+├── tools/           # API clients, utilities
+│   ├── polymarket_client.py
+│   └── brave_search.py
+├── workflows/       # LangGraph workflow orchestration
+│   └── arbitrage_detection_graph.py
+└── utils/           # Shared utilities
+    ├── logging.py
+    └── config.py
 ```
 
-#### Deploy to Production
+**Rules**:
+- Keep modules under 300 lines
+- One class per file unless closely related
+- Use `__init__.py` to expose public API
+- Name files after their primary class/function
+
+### Naming Conventions
+
+- **Files**: `snake_case.py`
+- **Classes**: `PascalCase`
+- **Functions/Variables**: `snake_case`
+- **Constants**: `UPPER_SNAKE_CASE`
+- **Private**: `_leading_underscore`
+
+### Error Handling
+
+```python
+# Define custom exceptions
+class PolymarketClientError(Exception):
+    """Base exception for Polymarket client errors."""
+    pass
+
+class MarketNotFoundError(PolymarketClientError):
+    """Raised when market is not found."""
+    pass
+
+# Use specific exception handling
+try:
+    market = await client.get_market(market_id)
+except httpx.HTTPStatusError as e:
+    logger.error(f"HTTP error fetching market: {e}")
+    raise MarketNotFoundError(f"Market {market_id} not found")
+except httpx.NetworkError as e:
+    logger.error(f"Network error: {e}")
+    raise PolymarketClientError("Network connection failed")
+```
+
+### Logging
+
+```python
+import structlog
+
+logger = structlog.get_logger()
+
+# Always include context
+logger.info("fetching_market_data", market_id=market_id)
+
+# Use appropriate log levels
+logger.debug("detailed_debugging_info")
+logger.info("normal_operation", detail="value")
+logger.warning("something_unexpected", error=error)
+logger.error("error_occurred", exception=str(e))
+```
+
+## Testing Standards
+
+### Test Organization
 
 ```
-You: "Deploy the latest changes to production"
+tests/
+├── unit/           # Test individual functions/classes
+├── integration/    # Test component interactions
+└── e2e/           # Test full workflows
+```
 
-Claude will:
-1. Invoke /qa-test-engineer to verify
-2. Invoke /security-analyst to review
-3. Invoke /devops-engineer to deploy
-4. Invoke /data-analyst to monitor
+### Testing Guidelines
+
+1. **Test-First Development**: Write tests before implementation
+2. **Mock External APIs**: Never call real APIs in tests
+3. **Use Fixtures**: Share test setup via `conftest.py`
+4. **Test Edge Cases**: Not just happy path
+5. **Maintain >80% Coverage**: Enforced via CI/CD
+
+### Test Examples
+
+```python
+import pytest
+from unittest.mock import AsyncMock, patch
+from src.tools.polymarket_client import PolymarketClient
+
+@pytest.mark.asyncio
+async def test_get_market_success():
+    """Test successful market fetch."""
+    client = PolymarketClient()
+
+    # Mock the HTTP client
+    with patch.object(client.http_client, 'get') as mock_get:
+        mock_get.return_value.json.return_value = {
+            "data": {
+                "market_id": "test-123",
+                "question": "Test question",
+                "description": "Test description",
+                "end_date": "2025-12-31",
+                "active": True
+            }
+        }
+
+        market = await client.get_market("test-123")
+
+        assert market.market_id == "test-123"
+        assert market.active is True
+```
+
+## Architecture Patterns
+
+### LangGraph Workflow Structure
+
+All workflows follow this pattern:
+
+```python
+class WorkflowState(TypedDict):
+    """State for the workflow."""
+    messages: Annotated[list, operator.add]
+    # Add workflow-specific fields
+
+class WorkflowGraph:
+    """Workflow orchestration."""
+
+    def __init__(self):
+        self.graph = self._build_graph()
+
+    def _build_graph(self) -> StateGraph:
+        workflow = StateGraph(WorkflowState)
+
+        # Add nodes
+        workflow.add_node("node_name", self.node_method)
+
+        # Define edges
+        workflow.add_edge("node1", "node2")
+        workflow.add_conditional_edges(
+            "node",
+            self.condition_method,
+            {"option1": "next_node", "option2": END}
+        )
+
+        return workflow.compile()
+
+    def node_method(self, state: WorkflowState) -> WorkflowState:
+        """Node implementation."""
+        # Process state
+        return state
+
+    def condition_method(self, state: WorkflowState) -> str:
+        """Routing logic."""
+        return "option1"
+```
+
+### MCP Integration Pattern
+
+```python
+class MCPIntegration:
+    """Base class for MCP integrations."""
+
+    def __init__(self, mcp_client):
+        self.mcp = mcp_client
+
+    async def call_mcp(self, method: str, **kwargs):
+        """Call MCP method with error handling."""
+        try:
+            return await self.mcp.call(method, kwargs)
+        except MCPError as e:
+            logger.error("mcp_error", method=method, error=str(e))
+            raise
 ```
 
 ## Development Workflow
 
-### 1. Feature Development
+### Feature Development Process
+
+1. **Product Manager**: Creates PRD with acceptance criteria
+2. **System Designer**: Designs architecture and API contracts
+3. **Developer**: Implements feature with tests (TDD)
+4. **QA**: Validates against Product Manager's requirements
+5. **Security**: Reviews for vulnerabilities
+6. **DevOps**: Sets up deployment/infrastructure
+7. **Data Analyst**: Tracks metrics to validate success
+
+### Commit Convention
+
+All commits must follow conventional commits:
+
+```
+feat: add news monitoring agent
+fix: resolve race condition in price fetching
+docs: update API documentation
+test: add integration tests for CLOB client
+refactor: simplify state management
+security: add input validation to API endpoints
+```
+
+### Code Review Checklist
+
+Before merging, ensure:
+- [ ] All tests pass
+- [ ] Coverage maintained >80%
+- [ ] Security review completed
+- [ ] Documentation updated
+- [ ] No hardcoded secrets
+- [ ] Type hints present
+- [ ] Logging added
+- [ ] Error handling comprehensive
+
+## Project Context for AI
+
+### Current Implementation Status
+
+**Completed**:
+- Project structure and setup
+- Basic LangGraph workflow skeleton
+- Polymarket client stub (async implementation)
+- Initial test structure
+
+**In Progress**:
+- Brave Search MCP integration
+- Sequential Thinking MCP integration
+- Arbitrage detection algorithm
+- Trade execution logic
+
+**Not Started**:
+- CI/CD pipeline
+- Docker containerization
+- Performance monitoring
+- Database for tracking trades
+
+### Key Integration Points
+
+1. **Brave Search MCP**: `src/tools/brave_search.py` (needs implementation)
+2. **Sequential Thinking MCP**: `src/agents/reasoning.py` (needs implementation)
+3. **Polymarket Gamma API**: `src/tools/polymarket_client.py` (partial)
+4. **Polymarket CLOB API**: `src/tools/clob_client.py` (needs implementation)
+
+### Environment Variables Required
 
 ```bash
-# Start with Product Manager
-"I want to add [feature description]"
+# Polymarket
+POLYMARKET_API_KEY=
+POLYMARKET_SECRET_KEY=
 
-# Agents will automatically:
-# 1. Product Manager creates PRD
-# 2. System Designer designs architecture
-# 3. Developer implements feature
-# 4. QA Engineer creates and runs tests
-# 5. Security Analyst reviews code
-# 6. DevOps Engineer handles deployment
-# 7. Data Analyst tracks metrics
+# MCP
+BRAVE_API_KEY=
+
+# Application
+LOG_LEVEL=INFO
+CONFIDENCE_THRESHOLD=0.7
+MIN_PROFIT_MARGIN=0.05
 ```
 
-### 2. Testing
+## Common Patterns
 
-```bash
-# Run all tests
-pytest
+### Retry Logic with Tenacity
 
-# Run specific test suite
-pytest tests/unit/
-pytest tests/integration/
-pytest tests/e2e/
-
-# Generate coverage report
-pytest --cov=src --cov-report=html
-```
-
-### 3. Local Development
-
-```bash
-# Start all services locally
-docker-compose up
-
-# Run the arbitrage detection system
-python -m src.workflows.arbitrage_detection_graph
-
-# Monitor logs
-tail -f logs/arbitrage_agent.log
-```
-
-### 4. Deployment
-
-```bash
-# Deploy to staging
-./scripts/deploy.sh staging
-
-# Deploy to production
-./scripts/deploy.sh production
-
-# Rollback deployment
-./scripts/rollback.sh production
-```
-
-## MCP Integration
-
-### Brave Search MCP
-
-**Purpose**: Real-time news retrieval and monitoring
-
-**Configuration**:
-```json
-{
-  "mcpServers": {
-    "brave-search": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-brave-search"],
-      "env": {
-        "BRAVE_API_KEY": "your-api-key-here"
-      }
-    }
-  }
-}
-```
-
-**Usage**:
-- Monitor breaking news on specific topics
-- Search for market-relevant events
-- Filter news by recency and relevance
-- Track news sources and credibility
-
-### Sequential Thinking MCP
-
-**Purpose**: Deep reasoning on news-to-market impact
-
-**Configuration**:
-```json
-{
-  "mcpServers": {
-    "sequential-thinking": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
-    }
-  }
-}
-```
-
-**Usage**:
-- Analyze whether news actually impacts resolution criteria
-- Evaluate confidence in impact assessment
-- Chain reasoning steps for complex situations
-- Identify edge cases and uncertainties
-
-## Polymarket API Integration
-
-### Gamma API
-
-**Purpose**: Market data and price information
-
-**Key Endpoints**:
-- `GET /markets`: List all markets
-- `GET /markets/{id}`: Get market details
-- `GET /price`: Get current price for token
-- `GET /book`: Get order book
-
-**Authentication**:
-- Public endpoints: No auth required
-- Private endpoints: API key + signature
-
-**Usage Examples**:
 ```python
-from src.tools.polymarket_client import PolymarketClient
+from tenacity import retry, stop_after_attempt, wait_exponential
 
-client = PolymarketClient()
-
-# Get market data
-markets = client.get_markets(active=True)
-
-# Get current price
-price = client.get_price(token_id="YES_TOKEN_ID", side="buy")
-
-# Get order book
-book = client.get_order_book(token_id="TOKEN_ID")
-```
-
-### CLOB API
-
-**Purpose**: Order placement and execution
-
-**Key Operations**:
-- Create and sign orders
-- Post orders (GTC, GTD, FOK)
-- Cancel orders
-- Get order status
-- Fetch trade history
-
-**Usage Examples**:
-```python
-from py_clob_client.client import ClobClient
-
-client = ClobClient(host="...", key="...", chain_id=137)
-
-# Create order
-order_args = OrderArgs(
-    price=0.50,
-    size=100.0,
-    side=BUY,
-    token_id="TOKEN_ID"
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=10)
 )
-signed_order = client.create_order(order_args)
-
-# Post order
-resp = client.post_order(signed_order, OrderType.GTC)
+async def fetch_with_retry(url: str):
+    async with httpx.AsyncClient() as client:
+        return await client.get(url)
 ```
 
-## Project Structure
+### Configuration Management
 
+```python
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    api_key: str
+    secret_key: str
+    log_level: str = "INFO"
+    confidence_threshold: float = 0.7
+
+    class Config:
+        env_file = ".env"
+
+settings = Settings()
 ```
-capstone-polymarket-arbitrage-agent/
-├── .claude/
-│   └── skills/              # Claude Code Skills (agents)
-├── docs/                    # Documentation
-│   ├── agents/             # Agent role descriptions
-│   ├── architecture/       # System architecture docs
-│   └── workflows/          # Workflow documentation
-├── src/
-│   ├── agents/             # LangGraph agent implementations
-│   ├── tools/              # API integrations
-│   ├── workflows/          # LangGraph workflows
-│   └── utils/              # Utilities
-├── tests/
-│   ├── unit/               # Unit tests
-│   ├── integration/        # Integration tests
-│   └── e2e/                # End-to-end tests
-├── CLAUDE.md               # This file
-├── README.md               # Project overview
-└── .env.example            # Environment template
-```
-
-## Best Practices
-
-### Code Style
-- Follow PEP 8 guidelines
-- Use type hints for all functions
-- Write descriptive docstrings
-- Keep modules under 300 lines
-- Use meaningful variable names
-
-### Testing
-- Maintain >80% test coverage
-- Write tests before implementation (TDD)
-- Mock external API calls
-- Test edge cases and error conditions
-- Use pytest fixtures for common setup
-
-### Security
-- Never commit API keys
-- Use environment variables for secrets
-- Validate all external inputs
-- Implement rate limiting
-- Log security-relevant events
-- Regular security audits
-
-### Documentation
-- Keep CLAUDE.md updated
-- Document all public APIs
-- Maintain architecture diagrams
-- Track design decisions (ADRs)
-- Update README with changes
-
-## Troubleshooting
-
-### Common Issues
-
-**Issue**: Agents not triggering
-- **Solution**: Restart Claude Code to reload skills
-
-**Issue**: API authentication failures
-- **Solution**: Verify API keys in .env file
-
-**Issue**: MCP servers not responding
-- **Solution**: Check MCP server configuration and network
-
-**Issue**: Tests failing locally
-- **Solution**: Ensure all dependencies installed via `pip install -r requirements.txt`
-
-## Contributing
-
-When contributing to this project:
-
-1. Use the multi-agent system for development
-2. Ensure all agents approve changes (QA, Security, Data Analyst)
-3. Update documentation as needed
-4. Add tests for new features
-5. Follow commit message conventions
-
-## License
-
-[Specify your license here]
-
-## Contact
-
-For questions or issues, please open a GitHub issue or contact the maintainers.
 
 ---
 
 **Last Updated**: 2025-01-12
-**Maintained By**: Multi-Agent System (Product Manager, Developer, DevOps Engineer)
+**Purpose**: This document serves as the "persistent memory" for Claude Code and AI agents working on this project.
