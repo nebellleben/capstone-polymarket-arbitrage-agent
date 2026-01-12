@@ -5,11 +5,8 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Dict, List, Optional
 
-import structlog
-
+from src.utils.logging_config import logger
 from src.utils.metrics import CycleMetrics
-
-logger = structlog.get_logger()
 
 
 class PerformanceTracker:

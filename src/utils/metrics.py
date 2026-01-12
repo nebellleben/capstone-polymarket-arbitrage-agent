@@ -7,9 +7,7 @@ from typing import Any, Dict, List
 from pathlib import Path
 import json
 
-import structlog
-
-logger = structlog.get_logger()
+from src.utils.logging_config import logger
 
 
 @dataclass
