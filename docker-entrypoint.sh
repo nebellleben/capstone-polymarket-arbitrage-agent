@@ -4,6 +4,7 @@ echo "=== Starting Polymarket Arbitrage Agent ==="
 echo "Environment: ${ENVIRONMENT:-not set}"
 echo "PWD: $(pwd)"
 # Use Railway's PORT if set, otherwise fall back to WEB_SERVER_PORT or 8080
+echo "Railway PORT: ${PORT:-not set}"
 export WEB_SERVER_PORT=${PORT:-${WEB_SERVER_PORT:-8080}}
 echo "Web Server Port: $WEB_SERVER_PORT"
 echo "========================================="

@@ -60,7 +60,8 @@ USER arbitrage
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV ENVIRONMENT=production
-ENV WEB_SERVER_PORT=8080
+# Don't set WEB_SERVER_PORT here - let Railway's PORT take precedence
+# The entrypoint script will use PORT if set, otherwise default to 8080
 
 # Health check - check web server health endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
