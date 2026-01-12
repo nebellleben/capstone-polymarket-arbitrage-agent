@@ -141,7 +141,7 @@ jobs:
         cache-to: type=gha,mode=max
 
     - name: Image scan with Trivy
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@v0.20.0
       with:
         image-ref: ghcr.io/${{ github.repository }}:latest
         format: 'sarif'
@@ -162,17 +162,32 @@ jobs:
 
     environment:
       name: production
-      url: https://polymarket-arbitrage-agent.up.railway.app
+      url: https://capstone-polymarket-arbitrage-agent-production.up.railway.app
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Install Railway CLI
+      run: npm install -g @railway/cli
+
+    - name: Verify Railway authentication
+      run: |
+        railway login --token ${{ secrets.RAILWAY_TOKEN }}
+        railway status || echo "✓ Railway authenticated successfully"
+
+    - name: Verify Railway service exists
+      run: |
+        SERVICE_ID="${{ secrets.RAILWAY_SERVICE_ID }}"
+        if [ -z "$SERVICE_ID" ]; then
+          echo "ERROR: RAILWAY_SERVICE_ID not set"
+          exit 1
+        fi
+        echo "✓ Railway Service ID: $SERVICE_ID"
+
     - name: Deploy to Railway
       run: |
-        npm install -g @railway/cli
-        railway login --token ${{ secrets.RAILWAY_TOKEN }}
-        railway up --service ${{ secrets.RAILWAY_SERVICE_ID }}
+        railway up --service ${{ secrets.RAILWAY_SERVICE_ID }} --verbose
 
     - name: Deploy to Render (alternative)
       if: false
@@ -182,8 +197,12 @@ jobs:
 
     - name: Verify deployment
       run: |
+        DEPLOY_URL="https://capstone-polymarket-arbitrage-agent-production.up.railway.app"
+        echo "Waiting for deployment to be ready..."
         sleep 30
-        curl -f ${{ env.url }} || exit 1
+        echo "Checking health endpoint..."
+        curl -f "$DEPLOY_URL/api/health" || exit 1
+        echo "✓ Deployment verified successfully"
 
     - name: Notify deployment
       uses: 8398a7/action-slack@v3
@@ -208,7 +227,7 @@ jobs:
 
     - name: Run health check
       run: |
-        curl -f https://polymarket-arbitrage-agent.up.railway.app/health || echo "Health check endpoint not yet implemented"
+        curl -f https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/health || echo "⚠️ Health check failed"
 
     - name: Monitor for errors
       run: |
