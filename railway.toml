@@ -1,0 +1,16 @@
+# Railway configuration for Polymarket Arbitrage Agent
+# This is a BACKGROUND WORKER - not a web service
+
+[build]
+# Build command (uses Dockerfile by default)
+
+[deploy]
+# Start command for the worker
+start = "python -m src.workflows.mvp_workflow"
+
+# NOTE: This is a background worker that:
+# - Runs continuous arbitrage detection cycles
+# - Does NOT expose HTTP endpoints
+# - Logs output to Railway's log viewer
+# - A 502 response when hitting the URL is EXPECTED
+# - Monitor via Railway dashboard logs, not HTTP requests

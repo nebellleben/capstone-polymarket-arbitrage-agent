@@ -193,6 +193,47 @@ The system is running smoothly and ready to detect opportunities when:
 
 ---
 
+## Railway Deployment Notes
+
+**IMPORTANT**: This is a **background worker**, not a web service!
+
+- The URL will return **502 errors** - this is **EXPECTED and NORMAL**
+- There is no HTTP server to respond to web requests
+- The worker runs continuous detection cycles in the background
+- Monitor via Railway Dashboard logs, not HTTP requests
+
+### How to Verify Worker is Running:
+
+1. **Go to Railway Dashboard**: https://railway.app/project/capstone-polymarket-arbitrage-agent
+2. **Click on the service** (capstone-polymarket-arbitrage-agent-production)
+3. **View "Logs" tab** - you should see:
+   - `continuous_start` with `interval: 60, max_cycles: "infinite"`
+   - `cycle_begin` messages every 60 seconds
+   - Cycle summaries with news/market counts
+   - **NO** repeated "Starting Container" messages (that would indicate crashes)
+
+### Expected Log Pattern:
+
+```
+{"event": "system_start"}
+{"event": "continuous_start", "interval": 60, "max_cycles": "infinite"}
+{"event": "cycle_begin", "number": 1}
+{"event": "search_news_start", ...}
+{"event": "fetch_markets_start", ...}
+{"event": "detect_opportunities_complete", "opportunities_found": 0}
+{"event": "generate_alerts_complete", "alerts_created": 0}
+{"event": "cycle_begin", "number": 2}  # Repeats every 60 seconds
+```
+
+### If Worker Keeps Restarting:
+
+If you see repeated "Starting Container" messages, check:
+1. Logs for Python errors
+2. `settings.news_search_interval` is set to seconds (not milliseconds)
+3. No exceptions in continuous execution loop
+
+---
+
 **Generated**: 2025-01-12
 **System**: Polymarket Arbitrage Agent MVP
 **Version**: 1.0.0
