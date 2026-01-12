@@ -81,6 +81,10 @@ class Settings(BaseSettings):
         default=None,
         description="Brave Search API key"
     )
+    anthropic_api_key: Optional[str] = Field(
+        default=None,
+        description="Anthropic API key for AI reasoning"
+    )
     brave_search_timeout: int = Field(
         default=30,
         description="Brave Search MCP timeout"

@@ -26,12 +26,17 @@ app = FastAPI(
 )
 
 # Configure CORS
+import os as _os
+_allowed_origins = _os.getenv("ALLOWED_ORIGINS", "").split(",")
+if not _allowed_origins[0]:  # If empty, use localhost for development
+    _allowed_origins = ["http://localhost:8080", "http://localhost:3000"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify allowed origins
+    allow_origins=_allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
@@ -71,12 +76,21 @@ async def startup_event():
 # Exception handlers
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
-    """Custom HTTP exception handler."""
+    """Custom HTTP exception handler with sanitized error messages."""
+    # Log detailed error internally for debugging
+    logger.error(
+        "http_exception",
+        status_code=exc.status_code,
+        detail=exc.detail,
+        path=request.url.path,
+        method=request.method,
+    )
+
+    # Return generic error to client (don't expose internal details)
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            "error": exc.detail,
-            "message": str(exc),
+            "error": exc.detail if exc.status_code < 500 else "An error occurred",
             "timestamp": datetime.utcnow().isoformat(),
         },
     )
