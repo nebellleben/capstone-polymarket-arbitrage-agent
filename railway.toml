@@ -12,6 +12,10 @@ start = "bash /app/docker-entrypoint.sh"
 [variables]
 LOG_LEVEL = "INFO"
 ENVIRONMENT = "production"
+PORT = "8080"
 
 # Health check endpoint
 HEALTHCHECK_PATH = "/api/health"
+HEALTHCHECK_INTERVAL = "30s"
+HEALTHCHECK_TIMEOUT = "10s"
+HEALTHCHECK_RESTART_DELAY = "10s"

@@ -64,8 +64,9 @@ ENV ENVIRONMENT=production
 # The entrypoint script will use PORT if set, otherwise default to 8080
 
 # Health check - check web server health endpoint
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8080/api/health || exit 1
+# Use PORT environment variable if set, otherwise default to 8080
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-8080}/api/health || exit 1
 
 # Run the supervisor script (starts both worker and web server)
 CMD ["./docker-entrypoint.sh"]
