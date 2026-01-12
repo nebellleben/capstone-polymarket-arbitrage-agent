@@ -5,7 +5,6 @@ This module provides an async client for querying market data from Polymarket's 
 """
 
 import asyncio
-import logging
 from datetime import datetime
 from typing import Any, Optional
 
@@ -19,8 +18,7 @@ from tenacity import (
 
 from src.models.market import Market, MarketData
 from src.utils.config import settings
-
-logger = logging.getLogger(__name__)
+from src.utils.logging_config import logger
 
 
 class PolymarketClientError(Exception):
@@ -183,7 +181,9 @@ class PolymarketGammaClient:
             data = await self._request("GET", "/markets", params=params)
 
             markets = []
-            for market_data in data.get("data", []):
+            # Handle both list and dict response formats
+            market_list = data if isinstance(data, list) else data.get("data", [])
+            for market_data in market_list:
                 try:
                     market = Market(
                         market_id=str(market_data.get("condition_id", "")),

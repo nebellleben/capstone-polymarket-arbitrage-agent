@@ -1,13 +1,12 @@
 """Arbitrage detection engine."""
 
-import logging
 from datetime import datetime
 
 from src.models.impact import MarketImpact
 from src.models.market import MarketData
 from src.models.opportunity import Opportunity
 
-logger = logging.getLogger(__name__)
+from src.utils.logging_config import logger
 
 
 class ArbitrageDetector:

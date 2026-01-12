@@ -1,7 +1,6 @@
 """Sequential Thinking MCP client for AI reasoning."""
 
 import asyncio
-import logging
 from datetime import datetime
 from typing import Optional
 
@@ -12,7 +11,7 @@ from src.models.market import Market
 from src.models.news import NewsArticle
 from src.utils.config import settings
 
-logger = logging.getLogger(__name__)
+from src.utils.logging_config import logger
 
 
 class ReasoningClient:

@@ -1,7 +1,6 @@
 """Alert generation and formatting."""
 
 import json
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -12,7 +11,7 @@ from src.models.news import NewsArticle
 from src.models.opportunity import Opportunity
 from src.utils.config import settings
 
-logger = logging.getLogger(__name__)
+from src.utils.logging_config import logger
 
 
 class AlertGenerator:

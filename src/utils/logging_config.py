@@ -38,3 +38,6 @@ def configure_logging() -> None:
 
 # Configure logging immediately on import
 configure_logging()
+
+# Create a default logger for use in modules
+logger = structlog.get_logger()
