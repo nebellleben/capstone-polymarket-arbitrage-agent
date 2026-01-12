@@ -5,11 +5,8 @@
 # Build command (uses Dockerfile by default)
 
 [deploy]
-# Start command - using bash explicitly to run entrypoint
-start = "bash /app/docker-entrypoint.sh"
-
-# Expose web server port (Railway sets this automatically)
-# PORT is set by Railway, don't override it here
+# Start command - run web server directly (testing)
+start = "uvicorn src.api.main:app --host 0.0.0.0 --port $PORT"
 
 # Environment variables
 [variables]
@@ -18,9 +15,3 @@ ENVIRONMENT = "production"
 
 # Health check endpoint
 HEALTHCHECK_PATH = "/api/health"
-
-# NOTE: This service runs:
-# - Background worker for continuous arbitrage detection
-# - FastAPI web server for monitoring and alerts (uses Railway's PORT)
-# - Both managed by supervisor script
-# - Dashboard available at root URL (/)
