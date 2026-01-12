@@ -10,6 +10,8 @@ from src.models.market import Market
 from src.models.news import NewsArticle
 from src.models.opportunity import Opportunity
 from src.utils.config import settings
+from src.utils.shared_state import get_alert_store
+from src.database.repositories import AlertRepository
 
 from src.utils.logging_config import logger
 
@@ -28,7 +30,8 @@ class AlertGenerator:
     def __init__(
         self,
         retention: int | None = None,
-        export_path: Optional[Path] = None
+        export_path: Optional[Path] = None,
+        enable_persistence: bool = True
     ):
         """
         Initialize the alert generator.
@@ -36,11 +39,19 @@ class AlertGenerator:
         Args:
             retention: Number of alerts to retain in memory
             export_path: Path to export alerts JSON file
+            enable_persistence: Whether to persist alerts to database
         """
         self.retention = retention or settings.alert_retention
         self.export_path = export_path or Path("alerts.json")
         self.alert_history: list[Alert] = []
         self.alert_counts: dict[str, int] = {}
+        self.enable_persistence = enable_persistence
+
+        # Initialize database repository if persistence is enabled
+        self.alert_repo = AlertRepository() if enable_persistence else None
+
+        # Get shared state store
+        self.alert_store = get_alert_store()
 
     def create_alert(
         self,
@@ -70,6 +81,21 @@ class AlertGenerator:
 
         # Add to history
         self._add_to_history(alert)
+
+        # Persist to database if enabled
+        if self.enable_persistence and self.alert_repo:
+            try:
+                alert_dict = self._alert_to_dict(alert)
+                self.alert_repo.save(alert_dict)
+                logger.debug("alert_persisted", alert_id=alert.id)
+            except Exception as e:
+                logger.error("alert_persistence_failed", alert_id=alert.id, error=str(e))
+
+        # Update shared state
+        try:
+            self.alert_store.add(alert)
+        except Exception as e:
+            logger.error("alert_shared_state_failed", alert_id=alert.id, error=str(e))
 
         logger.info(
             "alert_created",

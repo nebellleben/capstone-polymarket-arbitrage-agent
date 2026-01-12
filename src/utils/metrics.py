@@ -3,11 +3,13 @@
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from pathlib import Path
 import json
 
 from src.utils.logging_config import logger
+from src.utils.shared_state import get_metrics_store
+from src.database.repositories import MetricsRepository
 
 
 @dataclass
@@ -88,11 +90,31 @@ class CycleMetrics:
 class MetricsCollector:
     """Collect and aggregate metrics across detection cycles."""
 
-    def __init__(self, export_path: Path | None = None):
-        """Initialize metrics collector."""
+    def __init__(
+        self,
+        export_path: Optional[Path] = None,
+        enable_persistence: bool = True,
+        enable_file_export: bool = False
+    ):
+        """
+        Initialize metrics collector.
+
+        Args:
+            export_path: Path for metrics JSONL file (deprecated)
+            enable_persistence: Whether to persist metrics to database
+            enable_file_export: Whether to export to file (disabled by default)
+        """
         self.export_path = export_path or Path("metrics.jsonl")
-        self.current_cycle: CycleMetrics | None = None
+        self.current_cycle: Optional[CycleMetrics] = None
         self.cycle_history: List[CycleMetrics] = []
+        self.enable_persistence = enable_persistence
+        self.enable_file_export = enable_file_export
+
+        # Initialize database repository if persistence is enabled
+        self.metrics_repo = MetricsRepository() if enable_persistence else None
+
+        # Get shared state store
+        self.metrics_store = get_metrics_store()
 
     def start_cycle(self, cycle_id: str) -> CycleMetrics:
         """Start a new detection cycle."""
@@ -113,8 +135,24 @@ class MetricsCollector:
             # Add to history
             self.cycle_history.append(self.current_cycle)
 
-            # Export metrics
-            self._export_cycle(self.current_cycle)
+            # Export to file if enabled (legacy)
+            if self.enable_file_export:
+                self._export_cycle(self.current_cycle)
+
+            # Persist to database if enabled
+            if self.enable_persistence and self.metrics_repo:
+                try:
+                    metric_dict = self._cycle_to_dict(self.current_cycle)
+                    self.metrics_repo.save(metric_dict)
+                    logger.debug("cycle_persisted", cycle_id=self.current_cycle.cycle_id)
+                except Exception as e:
+                    logger.error("cycle_persistence_failed", cycle_id=self.current_cycle.cycle_id, error=str(e))
+
+            # Update shared state
+            try:
+                self.metrics_store.add(self.current_cycle)
+            except Exception as e:
+                logger.error("cycle_shared_state_failed", cycle_id=self.current_cycle.cycle_id, error=str(e))
 
             logger.info(
                 "cycle_completed",
@@ -197,6 +235,29 @@ class MetricsCollector:
                 f.write(json.dumps(cycle.to_dict()) + "\n")
         except Exception as e:
             logger.error("metrics_export_failed", error=str(e))
+
+    def _cycle_to_dict(self, cycle: CycleMetrics) -> Dict[str, Any]:
+        """Convert cycle metrics to dictionary for database storage."""
+        return {
+            "cycle_id": cycle.cycle_id,
+            "start_time": cycle.start_time,
+            "end_time": cycle.end_time,
+            "duration_seconds": cycle.duration_seconds,
+            "news_articles_fetched": cycle.news_articles_fetched,
+            "news_articles_new": cycle.news_articles_new,
+            "markets_fetched": cycle.markets_fetched,
+            "markets_with_prices": cycle.markets_with_prices,
+            "impacts_analyzed": cycle.impacts_analyzed,
+            "impacts_significant": cycle.impacts_significant,
+            "reasoning_time_total": cycle.reasoning_time_total,
+            "opportunities_detected": cycle.opportunities_detected,
+            "opportunities_high_confidence": cycle.opportunities_high_confidence,
+            "alerts_generated": cycle.alerts_generated,
+            "api_calls_json": json.dumps(cycle.api_calls),
+            "error_count": len(cycle.errors),
+            "news_to_alert_rate": cycle.news_to_alert_rate,
+            "opportunity_detection_rate": cycle.opportunity_detection_rate,
+        }
 
     def export_summary(self, output_path: Path | None = None):
         """Export aggregated metrics summary to JSON."""
