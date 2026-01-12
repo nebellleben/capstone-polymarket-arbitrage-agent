@@ -12,7 +12,6 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from src.models.alert import Alert
-from src.utils.metrics import CycleMetrics
 from src.utils.logging_config import logger
 
 
@@ -124,7 +123,7 @@ class ThreadSafeMetricsStore:
         self._lock = threading.RLock()
         self._max_size = max_size
 
-    def add(self, metrics: CycleMetrics) -> None:
+    def add(self, metrics: "CycleMetrics") -> None:
         """
         Add cycle metrics to store.
 

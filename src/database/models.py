@@ -59,11 +59,11 @@ class Alert(Base):
     # Timestamp
     timestamp: Mapped[datetime] = mapped_column(DateTime, index=True)
 
-    # Indexes for common queries
+    # Indexes for common queries (defined as table constraints)
     __table_args__ = (
-        Index("idx_alerts_timestamp_desc", Alert.timestamp.desc()),
-        Index("idx_alerts_severity_timestamp", Alert.severity, Alert.timestamp.desc()),
-        Index("idx_alerts_confidence_timestamp", Alert.confidence, Alert.timestamp.desc()),
+        Index("idx_alerts_timestamp_desc", "timestamp"),
+        Index("idx_alerts_severity_timestamp", "severity", "timestamp"),
+        Index("idx_alerts_confidence_timestamp", "confidence", "timestamp"),
     )
 
     def __repr__(self) -> str:
@@ -118,10 +118,10 @@ class CycleMetric(Base):
     news_to_alert_rate: Mapped[float] = mapped_column(Float)
     opportunity_detection_rate: Mapped[float] = mapped_column(Float)
 
-    # Indexes for common queries
+    # Indexes for common queries (defined as table constraints)
     __table_args__ = (
-        Index("idx_cycles_start_time_desc", CycleMetric.start_time.desc()),
-        Index("idx_cycles_opportunities", CycleMetric.opportunities_detected),
+        Index("idx_cycles_start_time_desc", "start_time"),
+        Index("idx_cycles_opportunities", "opportunities_detected"),
     )
 
     def __repr__(self) -> str:
