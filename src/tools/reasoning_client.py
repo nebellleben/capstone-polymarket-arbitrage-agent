@@ -21,7 +21,7 @@ class ReasoningClient:
         """Initialize the Reasoning client."""
         self.timeout = settings.sequential_thinking_timeout
         # Note: Using Anthropic API as fallback if MCP not configured
-        self.client: Optional[anthic.Anthropic] = None
+        self.client: Optional[anthropic.Anthropic] = None
 
     async def analyze_impact(
         self,

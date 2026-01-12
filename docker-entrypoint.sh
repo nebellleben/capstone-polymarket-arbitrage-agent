@@ -56,7 +56,12 @@ trap cleanup SIGINT SIGTERM
 
 # Initialize database
 echo "Initializing database..."
-python -m src.database.connection init
+if python -m src.database.connection init; then
+    echo "✓ Database initialized successfully"
+else
+    echo "✗ ERROR: Database initialization failed"
+    exit 1
+fi
 
 # Start background worker
 echo "Starting detection worker..."
