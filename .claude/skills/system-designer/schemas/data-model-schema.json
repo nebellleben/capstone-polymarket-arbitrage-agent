@@ -1,0 +1,284 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Data Model Schema Template",
+  "description": "Template for defining data models in JSON Schema format",
+  "type": "object",
+  "definitions": {
+    "Entity": {
+      "type": "object",
+      "description": "Base entity with common fields",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier",
+          "format": "uuid"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when entity was created"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when entity was last updated"
+        }
+      },
+      "required": ["id", "created_at"]
+    }
+  },
+  "properties": {
+    "EntityName": {
+      "allOf": [
+        { "$ref": "#/definitions/Entity" },
+        {
+          "type": "object",
+          "properties": {
+            "field1": {
+              "type": "string",
+              "description": "Description of field1"
+            },
+            "field2": {
+              "type": "number",
+              "description": "Description of field2"
+            },
+            "relationship_id": {
+              "type": "string",
+              "description": "Foreign key to related entity",
+              "format": "uuid"
+            }
+          },
+          "required": ["field1", "field2"]
+        }
+      ]
+    }
+  },
+  "required": ["EntityName"]
+}
+
+## Example: News Article Entity
+{
+  "type": "object",
+  "title": "NewsArticle",
+  "description": "News article retrieved from Brave Search",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique article identifier"
+    },
+    "headline": {
+      "type": "string",
+      "description": "Article headline",
+      "maxLength": 500
+    },
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Article URL"
+    },
+    "source": {
+      "type": "string",
+      "description": "News source name"
+    },
+    "published_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Publication timestamp"
+    },
+    "retrieved_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When we retrieved this article"
+    },
+    "content": {
+      "type": "string",
+      "description": "Article content or summary"
+    },
+    "keywords": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Extracted keywords"
+    }
+  },
+  "required": ["id", "headline", "url", "published_at"],
+  "indexes": [
+    {
+      "fields": ["published_at"],
+      "type": "descending"
+    },
+    {
+      "fields": ["source", "published_at"],
+      "type": "compound"
+    }
+  ]
+}
+
+## Example: Market Entity
+{
+  "type": "object",
+  "title": "PolymarketMarket",
+  "description": "Polymarket market data",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Polymarket market ID"
+    },
+    "question": {
+      "type": "string",
+      "description": "Market question"
+    },
+    "description": {
+      "type": "string",
+      "description": "Market description"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Market end date"
+    },
+    "active": {
+      "type": "boolean",
+      "description": "Whether market is active"
+    },
+    "token_id": {
+      "type": "string",
+      "description": "YES token ID"
+    },
+    "current_price": {
+      "type": "number",
+      "description": "Current YES price (0-1)"
+    },
+    "volume": {
+      "type": "number",
+      "description": "Trading volume"
+    },
+    "category": {
+      "type": "string",
+      "description": "Market category"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Market tags"
+    }
+  },
+  "required": ["id", "question", "token_id", "current_price"],
+  "indexes": [
+    {
+      "fields": ["active"],
+      "type": "ascending"
+    },
+    {
+      "fields": ["category"],
+      "type": "ascending"
+    }
+  ]
+}
+
+## Example: Arbitrage Opportunity Entity
+{
+  "type": "object",
+  "title": "ArbitrageOpportunity",
+  "description": "Detected arbitrage opportunity",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique opportunity identifier"
+    },
+    "market_id": {
+      "type": "string",
+      "description": "Polymarket market ID"
+    },
+    "news_article_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Related news article"
+    },
+    "expected_price": {
+      "type": "number",
+      "description": "Expected price after news impact"
+    },
+    "actual_price": {
+      "type": "number",
+      "description": "Current actual price"
+    },
+    "price_discrepancy": {
+      "type": "number",
+      "description": "Absolute price difference"
+    },
+    "confidence_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confidence in opportunity (0-1)"
+    },
+    "detected_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When opportunity was detected"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When opportunity expires"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "executed", "expired", "cancelled"],
+      "description": "Opportunity status"
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "AI reasoning for the opportunity"
+    }
+  },
+  "required": ["id", "market_id", "expected_price", "actual_price", "confidence_score"],
+  "indexes": [
+    {
+      "fields": ["status", "detected_at"],
+      "type": "compound"
+    },
+    {
+      "fields": ["confidence_score"],
+      "type": "descending"
+    }
+  ]
+}
+
+## SQL DDL Template Example
+
+-- EntityName table
+CREATE TABLE entity_name (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    field1 VARCHAR(255) NOT NULL,
+    field2 DECIMAL(10, 2) NOT NULL,
+    relationship_id UUID REFERENCES related_table(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CONSTRAINT constraint_name CHECK (field2 > 0)
+);
+
+-- Indexes
+CREATE INDEX idx_entity_name_field1 ON entity_name(field1);
+CREATE INDEX idx_entity_name_relationship ON entity_name(relationship_id);
+CREATE INDEX idx_entity_name_created_at ON entity_name(created_at DESC);
+
+-- Triggers for updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_entity_name_updated_at
+    BEFORE UPDATE ON entity_name
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
