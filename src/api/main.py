@@ -161,4 +161,4 @@ if static_dir.exists():
     from fastapi.staticfiles import StaticFiles
 
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-    logger.info("static_files_mounted", path=str(static_dir))
+    # Note: logger not available at module level, logging done in startup
