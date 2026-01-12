@@ -67,8 +67,15 @@ echo "Starting web server on port ${WEB_SERVER_PORT:-8080}..."
 uvicorn src.api.main:app \
     --host 0.0.0.0 \
     --port ${WEB_SERVER_PORT:-8080} \
-    --log-level info &
+    --log-level info 2>&1 &
 WEB_PID=$!
+
+# Verify web server started
+sleep 2
+if ! kill -0 $WEB_PID 2>/dev/null; then
+    echo "ERROR: Web server failed to start or exited immediately"
+    exit 1
+fi
 
 echo ""
 echo "✓ Services started successfully"
