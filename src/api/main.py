@@ -13,10 +13,7 @@ from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-# Lazy imports to avoid blocking startup
-# from src.api.models.response import ErrorResponse, HealthResponse
-# from src.utils.logging_config import logger
-# from src.utils.shared_state import get_service_state
+from src.utils.logging_config import logger
 
 
 # Create FastAPI application
@@ -51,13 +48,10 @@ async def health_check() -> dict[str, Any]:
 @app.on_event("startup")
 async def startup_event():
     """Initialize application on startup."""
-    # Lazy import dependencies
-    from src.utils.logging_config import logger
-    from src.utils.shared_state import get_service_state
-
     logger.info("api_startup")
 
     # Set web server running status
+    from src.utils.shared_state import get_service_state
     service_state = get_service_state()
     service_state.set_web_server_running(True)
 
