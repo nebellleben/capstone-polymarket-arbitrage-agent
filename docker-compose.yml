@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  arbitrage-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: polymarket-arbitrage-agent
+    restart: unless-stopped
+    environment:
+      # Application
+      - ENVIRONMENT=development
+      - LOG_LEVEL=INFO
+
+      # News Monitoring
+      - SEARCH_QUERIES=breaking news politics,crypto news,election updates
+      - NEWS_SEARCH_INTERVAL=60
+      - NEWS_MAX_RESULTS=10
+      - NEWS_FRESHNESS=pd
+
+      # Arbitrage Detection
+      - CONFIDENCE_THRESHOLD=0.7
+      - MIN_PROFIT_MARGIN=0.05
+      - RELEVANCE_THRESHOLD=0.5
+
+      # Market Data
+      - POLYMARKET_GAMMA_HOST=gamma-api.polymarket.com
+      - MARKET_REFRESH_INTERVAL=300
+      - POLYMARKET_TIMEOUT=30
+      - POLYMARKET_RATE_LIMIT=10
+
+      # API Keys (set in .env or override here)
+      - BRAVE_API_KEY=${BRAVE_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+
+    volumes:
+      # Mount logs directory
+      - ./logs:/app/logs
+      # Mount alerts output
+      - ./alerts:/app/alerts
+
+    ports:
+      # Expose for health checks (if needed)
+      - "8080:8000"
+
+    networks:
+      - arbitrage-network
+
+networks:
+  arbitrage-network:
+    driver: bridge
+
+volumes:
+  logs:
+  alerts:
