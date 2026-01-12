@@ -405,25 +405,25 @@ async def main():
 
     graph = ArbitrageDetectionGraph()
 
-    # Run a single cycle for MVP testing
-    result = await graph.run_cycle(search_query="breaking news politics")
+    # Run continuous cycles for deployment
+    # For local testing (single cycle): run SINGLE_CYCLE=true python -m src.workflows.mvp_workflow
+    import os
+    if os.getenv("SINGLE_CYCLE", "false").lower() == "true":
+        result = await graph.run_cycle(search_query="breaking news politics")
+        logger.info("single_cycle_complete", result_summary={
+            "news_articles": len(result['news_articles']),
+            "markets": len(result['markets']),
+            "impacts": len(result['market_impacts']),
+            "opportunities": len(result['opportunities']),
+            "alerts": len(result['alerts'])
+        })
+    else:
+        await graph.run_continuous(
+            interval=settings.news_search_interval,
+            max_cycles=None  # Run forever
+        )
 
-    # Print summary
-    print("\n" + "=" * 80)
-    print("CYCLE SUMMARY")
-    print("=" * 80)
-    print(f"News Articles: {len(result['news_articles'])}")
-    print(f"Markets Analyzed: {len(result['markets'])}")
-    print(f"Impacts Found: {len(result['market_impacts'])}")
-    print(f"Opportunities Detected: {len(result['opportunities'])}")
-    print(f"Alerts Generated: {len(result['alerts'])}")
-
-    if result['errors']:
-        print(f"\nErrors: {len(result['errors'])}")
-        for error in result['errors']:
-            print(f"  - {error}")
-
-    print("=" * 80)
+    # Note: Summaries are printed at the end of each cycle in run_cycle()
 
 
 if __name__ == "__main__":
