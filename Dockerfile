@@ -59,6 +59,11 @@ USER arbitrage
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV ENVIRONMENT=production
+ENV WEB_SERVER_PORT=8080
 
-# Run the application (Railway will override with start command from railway.toml)
-CMD ["uvicorn", "test_app:app", "--host", "0.0.0.0", "--port", "8080"]
+# Health check - check web server health endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8080/api/health || exit 1
+
+# Run the supervisor script (starts both worker and web server)
+CMD ["./docker-entrypoint.sh"]
