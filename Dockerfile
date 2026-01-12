@@ -1,4 +1,5 @@
 # Multi-stage Dockerfile for Polymarket Arbitrage Agent MVP
+# Build: 2026-01-13-16:45 - Force Railway cache invalidation with latest code
 # Stage 1: Builder
 FROM python:3.11-slim as builder
 
