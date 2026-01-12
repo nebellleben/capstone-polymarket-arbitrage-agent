@@ -22,6 +22,10 @@ class Market(BaseModel):
     yes_token_id: str = Field(..., description="YES token ID")
     no_token_id: str = Field(..., description="NO token ID")
 
+    # Current prices (optional, from market data)
+    yes_price: Optional[float] = Field(None, ge=0.0, le=1.0, description="Current YES price")
+    no_price: Optional[float] = Field(None, ge=0.0, le=1.0, description="Current NO price")
+
     # Categories (for filtering)
     tags: list[str] = Field(default_factory=list, description="Market category tags")
 

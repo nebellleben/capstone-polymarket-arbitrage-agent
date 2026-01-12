@@ -183,19 +183,64 @@ class PolymarketGammaClient:
             markets = []
             # Handle both list and dict response formats
             market_list = data if isinstance(data, list) else data.get("data", [])
+
             for market_data in market_list:
                 try:
+                    # Extract token IDs from clobTokenIds (JSON array string)
+                    clob_tokens_str = market_data.get("clobTokenIds", "[]")
+                    try:
+                        import json
+                        clob_tokens = json.loads(clob_tokens_str)
+                        yes_token = clob_tokens[0] if len(clob_tokens) > 0 else ""
+                        no_token = clob_tokens[1] if len(clob_tokens) > 1 else ""
+                    except (json.JSONDecodeError, IndexError, TypeError):
+                        # Fallback to other field names if clobTokenIds fails
+                        yes_token = (
+                            market_data.get("outcome_token_id_yes") or
+                            market_data.get("token_id_yes") or
+                            market_data.get("yes_token") or
+                            ""
+                        )
+                        no_token = (
+                            market_data.get("outcome_token_id_no") or
+                            market_data.get("token_id_no") or
+                            market_data.get("no_token") or
+                            ""
+                        )
+
+                    # Extract prices from outcomePrices if available
+                    yes_price_val = None
+                    no_price_val = None
+                    outcome_prices_str = market_data.get("outcomePrices", "[]")
+                    try:
+                        outcome_prices = json.loads(outcome_prices_str)
+                        yes_price_val = float(outcome_prices[0]) if len(outcome_prices) > 0 and outcome_prices[0] else None
+                        no_price_val = float(outcome_prices[1]) if len(outcome_prices) > 1 and outcome_prices[1] else None
+                    except (json.JSONDecodeError, IndexError, TypeError, ValueError):
+                        pass
+
                     market = Market(
-                        market_id=str(market_data.get("condition_id", "")),
+                        market_id=str(market_data.get("condition_id", market_data.get("id", ""))),
                         question=market_data.get("question", ""),
                         description=market_data.get("description", ""),
                         end_date=self._parse_end_date(market_data),
                         active=market_data.get("active", True),
-                        yes_token_id=str(market_data.get("outcome_token_id_yes", "")),
-                        no_token_id=str(market_data.get("outcome_token_id_no", "")),
+                        yes_token_id=str(yes_token),
+                        no_token_id=str(no_token),
+                        yes_price=yes_price_val,
+                        no_price=no_price_val,
                         tags=market_data.get("tags", [])
                     )
-                    markets.append(market)
+
+                    # Only add markets with valid token IDs
+                    if market.yes_token_id and market.no_token_id:
+                        markets.append(market)
+                    else:
+                        logger.debug(
+                            "skipping_market_no_tokens",
+                            market_id=market.market_id,
+                            question=market.question[:50]
+                        )
                 except Exception as e:
                     logger.warning("failed_to_parse_market", market_id=market_data.get("condition_id"), error=str(e))
 
@@ -286,6 +331,8 @@ class PolymarketGammaClient:
         """
         Fetch current price data for a market.
 
+        Uses prices from market object if available, otherwise fetches from API.
+
         Args:
             market: Market object
 
@@ -296,8 +343,28 @@ class PolymarketGammaClient:
             PolymarketClientError: If API request fails
         """
         try:
-            yes_price = await self.get_price(market.yes_token_id, "buy")
-            no_price = await self.get_price(market.no_token_id, "buy")
+            # Use prices from market object if available
+            if market.yes_price is not None and market.no_price is not None:
+                yes_price = market.yes_price
+                no_price = market.no_price
+
+                logger.debug(
+                    "market_data_from_cache",
+                    market_id=market.market_id,
+                    yes_price=yes_price,
+                    no_price=no_price
+                )
+            else:
+                # Fallback to fetching prices via API
+                yes_price = await self.get_price(market.yes_token_id, "buy")
+                no_price = await self.get_price(market.no_token_id, "buy")
+
+                logger.debug(
+                    "market_data_fetched_api",
+                    market_id=market.market_id,
+                    yes_price=yes_price,
+                    no_price=no_price
+                )
 
             # Normalize prices (YES + NO should equal ~1.0)
             total = yes_price + no_price
@@ -310,13 +377,6 @@ class PolymarketGammaClient:
                 yes_price=yes_price,
                 no_price=no_price,
                 timestamp=datetime.utcnow()
-            )
-
-            logger.debug(
-                "market_data_fetched",
-                market_id=market.market_id,
-                yes_price=yes_price,
-                no_price=no_price
             )
 
             return market_data
