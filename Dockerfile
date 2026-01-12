@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y \
 
 # Create non-root user for security
 RUN useradd -m -u 1000 arbitrage && \
-    mkdir -p /app /app/logs && \
+    mkdir -p /app /app/logs /app/data && \
     chown -R arbitrage:arbitrage /app
 
 # Copy virtual environment from builder
@@ -44,9 +44,13 @@ WORKDIR /app
 # Copy application code
 COPY --chown=arbitrage:arbitrage . .
 
-# Create logs directory
-RUN mkdir -p /app/logs && \
-    chown -R arbitrage:arbitrage /app/logs
+# Copy and make executable the entrypoint script
+COPY --chown=arbitrage:arbitrage docker-entrypoint.sh /app/
+RUN chmod +x /app/docker-entrypoint.sh
+
+# Create logs and data directories
+RUN mkdir -p /app/logs /app/data && \
+    chown -R arbitrage:arbitrage /app/logs /app/data
 
 # Switch to non-root user
 USER arbitrage
@@ -55,10 +59,11 @@ USER arbitrage
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV ENVIRONMENT=production
+ENV WEB_SERVER_PORT=8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import sys; sys.exit(0)"
+# Health check - check web server health endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8080/api/health || exit 1
 
-# Run the application
-CMD ["python", "-m", "src.workflows.mvp_workflow"]
+# Run the supervisor script (starts both worker and web server)
+CMD ["./docker-entrypoint.sh"]

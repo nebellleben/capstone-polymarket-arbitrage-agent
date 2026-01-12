@@ -1,16 +1,28 @@
 # Railway configuration for Polymarket Arbitrage Agent
-# This is a BACKGROUND WORKER - not a web service
+# This service runs BOTH a background worker AND a web API
 
 [build]
 # Build command (uses Dockerfile by default)
 
 [deploy]
-# Start command for the worker
-start = "python -m src.workflows.mvp_workflow"
+# Start command for the supervisor (manages both worker and web server)
+start = "./docker-entrypoint.sh"
 
-# NOTE: This is a background worker that:
-# - Runs continuous arbitrage detection cycles
-# - Does NOT expose HTTP endpoints
-# - Logs output to Railway's log viewer
-# - A 502 response when hitting the URL is EXPECTED
-# - Monitor via Railway dashboard logs, not HTTP requests
+# Expose web server port
+PORT = 8080
+
+# Environment variables
+[variables]
+LOG_LEVEL = "INFO"
+ENVIRONMENT = "production"
+WEB_SERVER_PORT = "8080"
+
+# Health check endpoint
+HEALTHCHECK_PATH = "/api/health"
+
+# NOTE: This service runs:
+# - Background worker for continuous arbitrage detection
+# - FastAPI web server for monitoring and alerts (port 8080)
+# - Both managed by supervisor script
+# - Exposes HTTP endpoints on port 8080
+# - Dashboard available at root URL (/)
