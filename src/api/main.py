@@ -36,12 +36,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-from src.api.routes import alerts, metrics, status
+# Include routers (lazy import to avoid blocking startup)
+@app.on_event("startup")
+async def startup_event():
+    """Initialize application on startup."""
+    logger.info("api_startup")
 
-app.include_router(alerts.router, prefix="/api", tags=["alerts"])
-app.include_router(metrics.router, prefix="/api", tags=["metrics"])
-app.include_router(status.router, prefix="/api", tags=["status"])
+    # Set web server running status
+    service_state = get_service_state()
+    service_state.set_web_server_running(True)
+
+    # Include routers (lazy import to avoid blocking startup)
+    from src.api.routes import alerts, metrics, status
+
+    app.include_router(alerts.router, prefix="/api", tags=["alerts"])
+    app.include_router(metrics.router, prefix="/api", tags=["metrics"])
+    app.include_router(status.router, prefix="/api", tags=["status"])
+
+    logger.info("routers_included")
+
+    # Note: Database is initialized by the entrypoint script before startup
+    # We don't initialize it here to avoid blocking the web server startup
 
 
 # Exception handlers
@@ -84,17 +99,12 @@ async def startup_event():
     """Initialize application on startup."""
     logger.info("api_startup")
 
-    # Initialize database
-    try:
-        from src.database.connection import init_db
-        init_db()
-        logger.info("database_initialized")
-    except Exception as e:
-        logger.error("database_init_failed", error=str(e))
-
     # Set web server running status
     service_state = get_service_state()
     service_state.set_web_server_running(True)
+
+    # Note: Database is initialized by the entrypoint script before startup
+    # We don't initialize it here to avoid blocking the web server startup
 
 
 @app.on_event("shutdown")
