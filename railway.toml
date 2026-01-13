@@ -12,7 +12,7 @@ start = "bash /app/docker-entrypoint.sh"
 [variables]
 LOG_LEVEL = "INFO"
 ENVIRONMENT = "production"
-PORT = "8080"
+# PORT is auto-injected by Railway - don't set manually
 
 # Health check endpoint
 HEALTHCHECK_PATH = "/api/health"

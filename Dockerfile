@@ -68,5 +68,9 @@ ENV ENVIRONMENT=production
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8080}/api/health || exit 1
 
+# Expose port for Railway routing
+# Railway uses this to configure the Edge Proxy routing
+EXPOSE 8080
+
 # Run the supervisor script (starts both worker and web server)
 CMD ["./docker-entrypoint.sh"]
