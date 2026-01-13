@@ -12,6 +12,7 @@ from src.models.opportunity import Opportunity
 from src.utils.config import settings
 from src.utils.shared_state import get_alert_store
 from src.database.repositories import AlertRepository
+from src.notifications.telegram_notifier import create_telegram_notifier
 
 from src.utils.logging_config import logger
 
@@ -31,7 +32,8 @@ class AlertGenerator:
         self,
         retention: int | None = None,
         export_path: Optional[Path] = None,
-        enable_persistence: bool = True
+        enable_persistence: bool = True,
+        enable_telegram: bool = True
     ):
         """
         Initialize the alert generator.
@@ -40,6 +42,7 @@ class AlertGenerator:
             retention: Number of alerts to retain in memory
             export_path: Path to export alerts JSON file
             enable_persistence: Whether to persist alerts to database
+            enable_telegram: Whether to enable Telegram notifications
         """
         self.retention = retention or settings.alert_retention
         self.export_path = export_path or Path("alerts.json")
@@ -52,6 +55,24 @@ class AlertGenerator:
 
         # Get shared state store
         self.alert_store = get_alert_store()
+
+        # Initialize Telegram notifier
+        self.enable_telegram = enable_telegram
+        self.telegram_notifier = None
+        if enable_telegram and settings.telegram_enabled:
+            min_severity = AlertSeverity[settings.telegram_min_severity.upper()]
+            self.telegram_notifier = create_telegram_notifier(
+                bot_token=settings.telegram_bot_token,
+                chat_id=settings.telegram_chat_id,
+                enabled=settings.telegram_enabled,
+                min_severity=min_severity
+            )
+            if self.telegram_notifier.is_enabled():
+                logger.info("telegram_notifications_enabled")
+            else:
+                logger.info("telegram_notifications_disabled", reason="Configuration missing")
+        else:
+            logger.info("telegram_notifications_disabled", reason="Feature disabled")
 
     def create_alert(
         self,
@@ -96,6 +117,13 @@ class AlertGenerator:
             self.alert_store.add(alert)
         except Exception as e:
             logger.error("alert_shared_state_failed", alert_id=alert.id, error=str(e))
+
+        # Send Telegram notification
+        if self.telegram_notifier and self.telegram_notifier.is_enabled():
+            try:
+                self.telegram_notifier.send_alert(alert)
+            except Exception as e:
+                logger.error("telegram_notification_failed", alert_id=alert.id, error=str(e))
 
         logger.info(
             "alert_created",

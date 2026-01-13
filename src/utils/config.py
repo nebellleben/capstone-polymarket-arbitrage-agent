@@ -105,6 +105,24 @@ class Settings(BaseSettings):
         description="Alert cooldown period in seconds"
     )
 
+    # Telegram Notifications
+    telegram_bot_token: Optional[str] = Field(
+        default=None,
+        description="Telegram bot token (from @BotFather)"
+    )
+    telegram_chat_id: Optional[str] = Field(
+        default=None,
+        description="Telegram chat ID to send alerts to"
+    )
+    telegram_enabled: bool = Field(
+        default=True,
+        description="Whether Telegram notifications are enabled"
+    )
+    telegram_min_severity: str = Field(
+        default="WARNING",
+        description="Minimum severity level for Telegram alerts (INFO/WARNING/CRITICAL)"
+    )
+
     # Cache TTL
     market_cache_ttl: int = Field(
         default=300,
