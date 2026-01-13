@@ -1,6 +1,7 @@
 """Telegram notification module for arbitrage alerts."""
 
 import os
+import time
 import urllib.parse
 from typing import List, Optional
 
@@ -175,8 +176,12 @@ class TelegramNotifier:
             failed_count = 0
             results = []
 
-            for subscriber in subscribers:
+            for i, subscriber in enumerate(subscribers):
                 try:
+                    # Add small delay between sends to avoid rate limiting
+                    if i > 0:
+                        time.sleep(0.5)
+
                     success = self._send_message_to_chat(subscriber.chat_id, message)
                     if success:
                         success_count += 1
@@ -254,8 +259,12 @@ class TelegramNotifier:
             failed_count = 0
             results = []
 
-            for subscriber in subscribers:
+            for i, subscriber in enumerate(subscribers):
                 try:
+                    # Add small delay between sends to avoid rate limiting
+                    if i > 0:
+                        time.sleep(0.5)
+
                     success = self._send_message_to_chat(subscriber.chat_id, message)
                     if success:
                         success_count += 1
@@ -313,6 +322,7 @@ class TelegramNotifier:
         Send a message via Telegram Bot API to a specific chat.
 
         Args:
+            chat_id: Target chat ID to send message to
             message: Message text to send
             parse_mode: Parse mode (Markdown or HTML)
 
@@ -322,7 +332,7 @@ class TelegramNotifier:
         url = self.TELEGRAM_API_URL.format(token=self.bot_token, method="sendMessage")
 
         params = {
-            "chat_id": self.chat_id,
+            "chat_id": chat_id,  # Use parameter, not self.chat_id
             "text": message,
             "parse_mode": parse_mode,
             "disable_web_page_preview": True
@@ -338,6 +348,7 @@ class TelegramNotifier:
         except requests.RequestException as e:
             logger.error(
                 "telegram_api_error",
+                chat_id=chat_id,
                 error=str(e),
                 status_code=getattr(e.response, 'status_code', None) if hasattr(e, 'response') else None
             )
