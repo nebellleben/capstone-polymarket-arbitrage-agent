@@ -110,11 +110,34 @@ https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/docs
 ```
 Browse and test all available API endpoints interactively!
 
+**7. All Available API Endpoints**
+
+**Alerts & Monitoring**:
+- `GET /api/health` - Health check
+- `GET /api/status` - System status (worker, database, uptime)
+- `GET /api/alerts` - List all alerts with pagination
+- `GET /api/alerts/recent` - Get recent alerts
+- `GET /api/alerts/{id}` - Get specific alert by ID
+- `GET /api/alerts/stats` - Alert statistics
+- `GET /api/metrics` - Performance metrics
+
+**Telegram Notifications**:
+- `GET /api/telegram/test` - Send test broadcast to all subscribers
+- `GET /api/telegram/status` - Telegram config and subscriber count
+- `GET /api/telegram/subscribers` - List all subscribers
+- `POST /api/telegram/subscribers/{chat_id}` - Add a subscriber
+- `DELETE /api/telegram/subscribers/{chat_id}` - Remove a subscriber
+
 ### 📱 Test Telegram Notifications
 
 Want to receive alerts on your phone? Here's how to test the Telegram integration:
 
-**Option 1: Quick API Test (30 seconds)**
+**How It Works**:
+- ✅ **Anyone who starts the bot receives alerts** - no configuration needed!
+- ✅ The system automatically tracks all subscribers
+- ✅ Broadcasts alerts to **all active subscribers simultaneously**
+
+**Quick Test (30 seconds)**:
 
 1. **Start the bot**:
    - Open Telegram and search for **@polymarb_alert_bot**
@@ -134,9 +157,25 @@ Want to receive alerts on your phone? Here's how to test the Telegram integratio
    You'll receive alerts here when arbitrage opportunities are detected.
    ```
 
-**Option 2: Receive Real Alerts**
+**Manage Subscribers**:
 
-The system monitors markets continuously and will send Telegram alerts when it detects arbitrage opportunities. Alerts include:
+```bash
+# View all subscribers
+curl https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/telegram/subscribers
+
+# Check subscriber count
+curl https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/telegram/status
+
+# Add a subscriber manually
+curl -X POST https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/telegram/subscribers/CHAT_ID
+
+# Remove a subscriber
+curl -X DELETE https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/telegram/subscribers/CHAT_ID
+```
+
+**What You'll Receive**:
+
+When the system detects arbitrage opportunities, you'll receive instant alerts with:
 - Market question and current/expected prices
 - News headline and link
 - AI reasoning explanation

@@ -1,8 +1,49 @@
 # Telegram Notifications Setup Guide
 
+## ⚡ Quick Start (For Users)
+
+**Want to receive alerts?** It takes 30 seconds:
+
+1. **Open Telegram** and search for **@polymarb_alert_bot**
+2. **Click "Start"** or send `/start`
+3. **Done!** You'll now receive alerts when opportunities are detected
+
+**Test it**:
+```bash
+curl https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/telegram/test
+```
+
+That's it! No configuration needed. 🎉
+
+---
+
 ## Overview
 
 The Polymarket Arbitrage Agent can send real-time notifications to Telegram when arbitrage opportunities are detected. This guide walks you through setting up Telegram bot notifications.
+
+## ✨ New: Multi-Chat Broadcasting
+
+**Good news**: The system now supports **automatic multi-chat broadcasting**! Anyone who starts the bot will receive alerts - no manual configuration needed.
+
+### How It Works
+
+1. **Users subscribe automatically** by sending `/start` to the bot
+2. **System tracks all subscribers** in the database
+3. **Alerts broadcast to all active subscribers** simultaneously
+4. **No configuration required** - just start the bot and you're done!
+
+### Benefits
+
+- ✅ **Anyone can subscribe** - Just start the bot
+- ✅ **Unlimited subscribers** - Support for multiple users
+- ✅ **Automatic management** - System tracks all subscribers
+- ✅ **No manual setup** - No need to configure individual chat IDs
+
+### For Developers
+
+If you're deploying your own instance, see the [Advanced Configuration](#advanced-configuration) section below for setup instructions.
+
+---
 
 ## What You'll Get
 
@@ -200,6 +241,73 @@ Breaking news: SEC has officially approved Bitcoin ETF applications. This is a m
 
 _Alert ID: abc123-def456-ghi789_
 ```
+
+## Managing Subscribers
+
+The system automatically tracks anyone who starts the bot, but you can also manage subscribers programmatically via the API.
+
+### View All Subscribers
+
+```bash
+curl https://your-app.up.railway.app/api/telegram/subscribers
+```
+
+Response:
+```json
+[
+  {
+    "chat_id": "123456789",
+    "username": "john_doe",
+    "first_name": "John",
+    "last_name": "Doe",
+    "subscribed_at": "2026-01-13T10:00:00",
+    "is_active": true
+  }
+]
+```
+
+### Get Subscriber Count
+
+```bash
+curl https://your-app.up.railway.app/api/telegram/status
+```
+
+Response:
+```json
+{
+  "enabled": true,
+  "configured": true,
+  "min_severity": "WARNING",
+  "chat_id": "123456789",
+  "total_subscribers": 5
+}
+```
+
+### Add Subscriber Manually
+
+```bash
+curl -X POST https://your-app.up.railway.app/api/telegram/subscribers/CHAT_ID
+```
+
+**Use case**: Add subscribers who haven't started the bot yet, or add groups/channels.
+
+### Remove Subscriber
+
+```bash
+curl -X DELETE https://your-app.up.railway.app/api/telegram/subscribers/CHAT_ID
+```
+
+**Use case**: Unsubscribe users who no longer want alerts (soft delete - they can re-subscribe by starting the bot again).
+
+### Send Test Broadcast
+
+```bash
+curl https://your-app.up.railway.app/api/telegram/test
+```
+
+**Use case**: Verify Telegram notifications are working for all subscribers.
+
+---
 
 ## Troubleshooting
 
