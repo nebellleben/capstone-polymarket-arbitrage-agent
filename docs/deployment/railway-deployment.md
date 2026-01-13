@@ -1,4 +1,14 @@
-# Deployment Configuration for Railway
+# Railway Deployment Guide
+
+## ✅ Deployment Status: **LIVE**
+
+**Production URL**: https://capstone-polymarket-arbitrage-agent-production.up.railway.app/
+
+**Status**: ✅ Fully Operational (Deployed: 2026-01-13)
+- Health checks passing
+- Worker running detection cycles
+- Database connected
+- API endpoints accessible
 
 ## Quick Start
 
@@ -34,11 +44,28 @@
 
 ## Railway Service Configuration
 
+### ⚠️ CRITICAL: Port Configuration
+
+**You MUST set the Port in Railway service Settings:**
+
+1. Go to Railway dashboard
+2. Open service → **Settings** tab
+3. Find **Port** field
+4. Set it to: **`8080`**
+5. Save and redeploy
+
+**Why This is Required**:
+- The Dockerfile has `EXPOSE 8080` directive
+- The application binds to `0.0.0.0:8080` inside the container
+- But Railway's Edge Proxy needs to know which port to forward traffic to
+- Without this setting, you'll get HTTP 502 "Application failed to respond"
+
 ### Service Type: Dockerfile
 
 ### Build Settings
 - **Dockerfile Path**: `Dockerfile`
 - **Context**: `/`
+- **Port**: `8080` (set in Settings tab)
 
 ### Environment Variables Required
 
@@ -103,3 +130,50 @@ Railway provides basic metrics:
 - Restart count
 
 Access via Railway Dashboard.
+
+## Verification
+
+After deployment, verify the application is working:
+
+```bash
+# Test health endpoint
+curl https://your-app.up.railway.app/api/health
+
+# Expected response:
+# {"status":"healthy","timestamp":"..."}
+```
+
+**Available Endpoints**:
+- `/` - API information
+- `/api/health` - Health check
+- `/api/status` - System status (worker, database)
+- `/api/alerts` - List alerts
+- `/api/alerts/recent` - Recent alerts
+- `/api/alerts/stats` - Alert statistics
+- `/api/metrics` - Performance metrics
+- `/api/docs` - Interactive Swagger documentation
+
+## Deployment Success Story
+
+**Deployment Date**: 2026-01-13
+
+**What Works**:
+- ✅ Container starts successfully
+- ✅ Health endpoint returns HTTP 200
+- ✅ Database connected and operational
+- ✅ Background worker running detection cycles
+- ✅ API endpoints accessible
+- ✅ Real-time monitoring via dashboard
+
+**Key Configuration**:
+- Dockerfile with `EXPOSE 8080` directive
+- Railway service Port set to `8080`
+- PORT variable auto-injected by Railway
+- Application binds to `0.0.0.0:8080`
+
+**Production URL**: https://capstone-polymarket-arbitrage-agent-production.up.railway.app/
+
+See Also:
+- `docs/deployment/deployment-verification-guide.md` - Detailed verification steps
+- `docs/deployment/troubleshooting-railway-502.md` - Troubleshooting guide
+- `docs/security/security-report-mvp.md` - Security review
