@@ -121,7 +121,15 @@ class AlertGenerator:
         # Send Telegram notification
         if self.telegram_notifier and self.telegram_notifier.is_enabled():
             try:
-                self.telegram_notifier.send_alert(alert)
+                # Broadcast to all subscribers
+                result = self.telegram_notifier.broadcast_alert(alert)
+                if result.get("success"):
+                    logger.info(
+                        "telegram_broadcast_success",
+                        alert_id=alert.id,
+                        total=result.get("total_subscribers", 0),
+                        success_count=result.get("success_count", 0)
+                    )
             except Exception as e:
                 logger.error("telegram_notification_failed", alert_id=alert.id, error=str(e))
 

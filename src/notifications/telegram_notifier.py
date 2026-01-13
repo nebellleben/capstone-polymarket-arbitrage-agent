@@ -2,11 +2,12 @@
 
 import os
 import urllib.parse
-from typing import Optional
+from typing import List, Optional
 
 import requests
 
 from src.models.alert import Alert, AlertSeverity
+from src.database.telegram_subscribers import TelegramSubscriberRepository
 from src.utils.logging_config import logger
 
 
@@ -133,9 +134,183 @@ class TelegramNotifier:
             logger.error("telegram_test_error", error=str(e))
             return False
 
-    def _send_message(self, message: str, parse_mode: str = "Markdown") -> bool:
+    def broadcast_alert(self, alert: Alert) -> dict[str, any]:
         """
-        Send a message via Telegram Bot API.
+        Broadcast an alert to all active subscribers.
+
+        Args:
+            alert: Alert to broadcast
+
+        Returns:
+            Dict with success counts and details
+        """
+        if not self.enabled:
+            logger.debug("telegram_broadcast_skipped", alert_id=alert.id, reason="Not enabled")
+            return {"success": False, "reason": "Not enabled"}
+
+        # Check severity threshold
+        if self._severity_below_threshold(alert.severity):
+            logger.debug(
+                "telegram_broadcast_skipped",
+                alert_id=alert.id,
+                reason=f"Severity {alert.severity.value} below {self.min_severity.value}"
+            )
+            return {"success": False, "reason": "Severity below threshold"}
+
+        try:
+            # Get all active subscribers
+            repo = TelegramSubscriberRepository()
+            subscribers = repo.get_all_active_subscribers()
+
+            if not subscribers:
+                logger.warning("telegram_broadcast_no_subscribers")
+                return {
+                    "success": False,
+                    "reason": "No active subscribers",
+                    "count": 0
+                }
+
+            message = self._format_alert(alert)
+            success_count = 0
+            failed_count = 0
+            results = []
+
+            for subscriber in subscribers:
+                try:
+                    success = self._send_message_to_chat(subscriber.chat_id, message)
+                    if success:
+                        success_count += 1
+                        results.append({
+                            "chat_id": subscriber.chat_id,
+                            "username": subscriber.username,
+                            "status": "sent"
+                        })
+                    else:
+                        failed_count += 1
+                        results.append({
+                            "chat_id": subscriber.chat_id,
+                            "username": subscriber.username,
+                            "status": "failed"
+                        })
+                except Exception as e:
+                    failed_count += 1
+                    logger.error(
+                        "telegram_broadcast_failed",
+                        chat_id=subscriber.chat_id,
+                        error=str(e)
+                    )
+                    results.append({
+                        "chat_id": subscriber.chat_id,
+                        "username": subscriber.username,
+                        "status": "error",
+                        "error": str(e)
+                    })
+
+            logger.info(
+                "telegram_broadcast_completed",
+                alert_id=alert.id,
+                total=len(subscribers),
+                success=success_count,
+                failed=failed_count
+            )
+
+            return {
+                "success": True,
+                "total_subscribers": len(subscribers),
+                "success_count": success_count,
+                "failed_count": failed_count,
+                "results": results
+            }
+
+        except Exception as e:
+            logger.error("telegram_broadcast_error", error=str(e))
+            return {"success": False, "reason": str(e)}
+
+    def broadcast_test_message(self) -> dict[str, any]:
+        """
+        Broadcast a test message to all active subscribers.
+
+        Returns:
+            Dict with broadcast results
+        """
+        if not self.enabled:
+            return {"success": False, "reason": "Not enabled"}
+
+        try:
+            # Get all active subscribers
+            repo = TelegramSubscriberRepository()
+            subscribers = repo.get_all_active_subscribers()
+
+            if not subscribers:
+                return {
+                    "success": False,
+                    "reason": "No active subscribers",
+                    "count": 0
+                }
+
+            message = "🔔 *Polymarket Arbitrage Agent*\n\n✅ Telegram notifications are working!\n\nYou'll receive alerts here when arbitrage opportunities are detected."
+
+            success_count = 0
+            failed_count = 0
+            results = []
+
+            for subscriber in subscribers:
+                try:
+                    success = self._send_message_to_chat(subscriber.chat_id, message)
+                    if success:
+                        success_count += 1
+                        results.append({
+                            "chat_id": subscriber.chat_id,
+                            "username": subscriber.username,
+                            "status": "sent"
+                        })
+                    else:
+                        failed_count += 1
+                        results.append({
+                            "chat_id": subscriber.chat_id,
+                            "username": subscriber.username,
+                            "status": "failed"
+                        })
+                except Exception as e:
+                    failed_count += 1
+                    logger.error(
+                        "telegram_test_broadcast_failed",
+                        chat_id=subscriber.chat_id,
+                        error=str(e)
+                    )
+                    results.append({
+                        "chat_id": subscriber.chat_id,
+                        "username": subscriber.username,
+                        "status": "error",
+                        "error": str(e)
+                    })
+
+            logger.info(
+                "telegram_test_broadcast_sent",
+                total=len(subscribers),
+                success=success_count,
+                failed=failed_count
+            )
+
+            return {
+                "success": True,
+                "total_subscribers": len(subscribers),
+                "success_count": success_count,
+                "failed_count": failed_count,
+                "results": results
+            }
+
+        except Exception as e:
+            logger.error("telegram_test_broadcast_error", error=str(e))
+            return {"success": False, "reason": str(e)}
+
+    def _send_message(self, message: str, parse_mode: str = "Markdown") -> bool:
+        """Send a message to the configured chat (legacy method)."""
+        return self._send_message_to_chat(self.chat_id, message, parse_mode)
+
+    def _send_message_to_chat(self, chat_id: str, message: str, parse_mode: str = "Markdown") -> bool:
+        """
+        Send a message via Telegram Bot API to a specific chat.
 
         Args:
             message: Message text to send
