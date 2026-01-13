@@ -114,18 +114,27 @@ Browse and test all available API endpoints interactively!
 
 Want to receive alerts on your phone? Here's how to test the Telegram integration:
 
-**Quick Test (2 minutes)**:
+**Option 1: Quick API Test (30 seconds)**
 
-1. **Get Your Telegram Chat ID**:
+1. **Start the bot**:
+   - Open Telegram and search for **@polymarb_alert_bot**
+   - Click "Start" or send `/start`
+
+2. **Send a test alert** via the API:
    ```bash
-   # Open Telegram and search for @userinfobot
-   # Send /start to get your numeric Chat ID
+   curl https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/telegram/test
    ```
 
-2. **Send a Test Alert**:
-   Use the API to trigger a test notification (this feature will be added soon!)
+   You should receive a test message like:
+   ```
+   🔔 Polymarket Arbitrage Agent
 
-**Or receive alerts when opportunities are detected**:
+   ✅ Telegram notifications are working!
+
+   You'll receive alerts here when arbitrage opportunities are detected.
+   ```
+
+**Option 2: Receive Real Alerts**
 
 The system monitors markets continuously and will send Telegram alerts when it detects arbitrage opportunities. Alerts include:
 - Market question and current/expected prices

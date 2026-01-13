@@ -61,11 +61,12 @@ async def startup_event():
     service_state.set_web_server_running(True)
 
     # Include routers (lazy import to avoid blocking startup)
-    from src.api.routes import alerts, metrics, status
+    from src.api.routes import alerts, metrics, status, telegram
 
     app.include_router(alerts.router, prefix="/api", tags=["alerts"])
     app.include_router(metrics.router, prefix="/api", tags=["metrics"])
     app.include_router(status.router, prefix="/api", tags=["status"])
+    app.include_router(telegram.router, prefix="/api", tags=["telegram"])
 
     logger.info("routers_included")
 
