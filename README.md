@@ -61,77 +61,97 @@ An automated system that:
          └─────────────┘         └─────────────┘
 ```
 
-## 🚀 Live Production Deployment
+## 🚀 Try It Now - Live Production System
+
+The system is **currently deployed and running** on Railway, monitoring markets 24/7.
 
 **Production URL**: https://capstone-polymarket-arbitrage-agent-production.up.railway.app/
 
-The system is currently deployed and running on Railway, monitoring markets 24/7.
+### 📊 Test the Web Dashboard
 
-### Web Dashboard
+Visit the live web interface to see the system in action:
 
-Access the interactive web interface:
+**1. Main Dashboard**
+```
+https://capstone-polymarket-arbitrage-agent-production.up.railway.app/
+```
+Shows API information and system status.
 
-- **Main Dashboard**: https://capstone-polymarket-arbitrage-agent-production.up.railway.app/
-- **API Documentation (Swagger)**: https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/docs
-- **Health Check**: https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/health
+**2. Check System Health**
+```bash
+curl https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/health
+```
+Expected response:
+```json
+{"status":"healthy","timestamp":"2026-01-13T..."}
+```
 
-**Available Endpoints**:
-- `GET /` - API information and available endpoints
-- `GET /api/health` - Health check status
-- `GET /api/status` - System status (worker, database, uptime)
-- `GET /api/alerts` - List all alerts with pagination
-- `GET /api/alerts/recent` - Get most recent alerts
-- `GET /api/alerts/{id}` - Get specific alert by ID
-- `GET /api/alerts/stats` - Alert statistics
-- `GET /api/metrics` - Performance metrics
+**3. View System Status**
+```bash
+curl https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/status
+```
+Shows worker status, database connection, and uptime.
 
-### 📱 Telegram Notifications
+**4. See Recent Alerts**
+```bash
+curl https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/alerts/recent
+```
+Returns the most recent arbitrage opportunities detected.
 
-Get instant alerts on your phone when arbitrage opportunities are detected!
+**5. Get Alert Statistics**
+```bash
+curl https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/alerts/stats
+```
+Shows total alerts, breakdown by severity, and more.
 
-**Setup Instructions**:
+**6. Interactive API Documentation (Swagger UI)**
+```
+https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/docs
+```
+Browse and test all available API endpoints interactively!
 
-1. **Create a Telegram Bot**:
-   - Open Telegram and search for `@BotFather`
-   - Send `/newbot` and follow the prompts
-   - Copy the bot token
+### 📱 Test Telegram Notifications
 
-2. **Get Your Chat ID**:
-   - Start a chat with your bot (send `/start`)
-   - Visit: `https://api.telegram.org/botYOUR_TOKEN/getUpdates`
-   - Find your numeric chat ID in the response
+Want to receive alerts on your phone? Here's how to test the Telegram integration:
 
-3. **Configure Environment Variables**:
+**Quick Test (2 minutes)**:
+
+1. **Get Your Telegram Chat ID**:
    ```bash
-   TELEGRAM_BOT_TOKEN=your_bot_token_here
-   TELEGRAM_CHAT_ID=your_numeric_chat_id
-   TELEGRAM_ENABLED=true
-   TELEGRAM_MIN_SEVERITY=WARNING
+   # Open Telegram and search for @userinfobot
+   # Send /start to get your numeric Chat ID
    ```
 
-4. **Test Your Configuration**:
-   ```bash
-   python scripts/test_telegram.py
-   ```
+2. **Send a Test Alert**:
+   Use the API to trigger a test notification (this feature will be added soon!)
+
+**Or receive alerts when opportunities are detected**:
+
+The system monitors markets continuously and will send Telegram alerts when it detects arbitrage opportunities. Alerts include:
+- Market question and current/expected prices
+- News headline and link
+- AI reasoning explanation
+- Recommended action
+- Confidence score
 
 **Alert Severity Levels**:
 - 🔴 **CRITICAL** - High confidence, high profit opportunities
 - ⚠️ **WARNING** - Medium confidence/profit (default)
 - ℹ️ **INFO** - Low confidence/profit (optional)
 
-For detailed setup instructions, see [Telegram Setup Guide](docs/notifications/telegram-setup-guide.md).
-
 ### What's Running Now
 
-The deployed system is:
-1. Monitoring breaking news every 60 seconds
-2. Fetching Polymarket market data every 5 minutes
-3. Analyzing news impact using AI reasoning
-4. Detecting arbitrage opportunities
-5. Generating alerts and sending Telegram notifications
-6. Serving the monitoring dashboard 24/7
+The deployed system is continuously:
+1. ✅ Monitoring breaking news every 60 seconds
+2. ✅ Fetching Polymarket market data every 5 minutes
+3. ✅ Analyzing news impact using AI reasoning
+4. ✅ Detecting arbitrage opportunities
+5. ✅ Generating alerts and sending Telegram notifications
+6. ✅ Serving the monitoring dashboard 24/7
 
-## Quick Start
+## 👨‍💻 For Developers: Run Locally
+
+Want to run the system yourself or contribute? Here's how to set it up locally.
 
 ### Prerequisites
 
@@ -162,34 +182,26 @@ cp .env.example .env
 python -m src.workflows.arbitrage_detection_graph
 ```
 
-### Environment Configuration
+### Local Environment Configuration
 
-Create a `.env` file with the following variables:
+For local development, create a `.env` file based on `.env.example`:
 
 ```bash
-# Polymarket API Credentials
-POLYMARKET_API_KEY=your_api_key_here
-POLYMARKET_SECRET_KEY=your_secret_key_here
-POLYMARKET_CLOB_HOST=api.polymarket.com
-POLYMARKET_GAMMA_HOST=gamma-api.polymarket.com
+# Copy the example file
+cp .env.example .env
 
-# MCP Server Configuration
-BRAVE_API_KEY=your_brave_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-
-# Application Settings
-LOG_LEVEL=INFO
-ENVIRONMENT=development
-CONFIDENCE_THRESHOLD=0.7
-MIN_PROFIT_MARGIN=0.05
-MAX_POSITION_SIZE=1000
-
-# Telegram Notifications (Optional)
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
-TELEGRAM_CHAT_ID=your_numeric_chat_id
-TELEGRAM_ENABLED=true
-TELEGRAM_MIN_SEVERITY=WARNING
+# Edit .env with your API credentials
+# Required: BRAVE_API_KEY, ANTHROPIC_API_KEY
+# Optional: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID (for local testing)
 ```
+
+**Required Environment Variables**:
+- `BRAVE_API_KEY` - Brave Search API key (get from [Brave Search API](https://brave.com/search/api/))
+- `ANTHROPIC_API_KEY` - Anthropic API key for AI reasoning
+
+**Optional for Telegram Testing**:
+- `TELEGRAM_BOT_TOKEN` - Your bot token (see [Telegram Setup Guide](docs/notifications/telegram-setup-guide.md))
+- `TELEGRAM_CHAT_ID` - Your numeric Telegram Chat ID
 
 ### MCP Configuration
 
@@ -279,15 +291,19 @@ pytest tests/e2e/
 pytest -v
 ```
 
-## 🚢 Deployment
+## 📚 Documentation
 
-### Railway Deployment
+- **[Telegram Setup Guide](docs/notifications/telegram-setup-guide.md)** - Configure Telegram notifications
+- **[Railway Deployment Guide](docs/deployment/railway-deployment.md)** - Deploy your own instance
+- **[Deployment Success Story](docs/deployment/DEPLOYMENT-SUCCESS.md)** - How we deployed to production
+- **[System Architecture](docs/architecture/system-architecture.md)** - Technical architecture details
 
-The system is deployed on Railway for continuous 24/7 operation.
+## 🚢 Deploy Your Own Instance
 
-**Deployment Status**: ✅ **LIVE** - https://capstone-polymarket-arbitrage-agent-production.up.railway.app/
+Want to deploy your own instance? Here's how:
 
-**Quick Deploy**:
+### Quick Deploy to Railway
+
 ```bash
 # Install Railway CLI
 npm install -g @railway/cli
@@ -305,13 +321,8 @@ railway up
 - `ANTHROPIC_API_KEY` - Anthropic API key
 - `TELEGRAM_BOT_TOKEN` - Telegram bot token (optional)
 - `TELEGRAM_CHAT_ID` - Telegram chat ID (optional)
-- `TELEGRAM_ENABLED` - Enable Telegram notifications (optional)
-- `TELEGRAM_MIN_SEVERITY` - Minimum alert severity (optional)
 
-For detailed deployment information, see:
-- [Railway Deployment Guide](docs/deployment/railway-deployment.md)
-- [Deployment Success Story](docs/deployment/DEPLOYMENT-SUCCESS.md)
-- [Telegram Setup Guide](docs/notifications/telegram-setup-guide.md)
+For detailed deployment instructions, see [Railway Deployment Guide](docs/deployment/railway-deployment.md).
 
 ### Docker Deployment
 
