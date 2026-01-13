@@ -200,3 +200,23 @@ def get_session() -> Generator[Session, None, None]:
     """
     with db_manager.get_session() as session:
         yield session
+
+
+if __name__ == "__main__":
+    """CLI handler for database operations."""
+    import sys
+
+    command = sys.argv[1] if len(sys.argv) > 1 else None
+
+    if command == "init":
+        try:
+            init_db()
+            print("✓ Database initialized successfully")
+            sys.exit(0)
+        except Exception as e:
+            print(f"✗ Database initialization failed: {e}")
+            sys.exit(1)
+    else:
+        print(f"Unknown command: {command}")
+        print("Available commands: init")
+        sys.exit(1)
