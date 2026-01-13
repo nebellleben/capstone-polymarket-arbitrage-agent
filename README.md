@@ -24,6 +24,8 @@ An automated system that:
 - **Real-time News Monitoring**: Continuous monitoring via Brave Search MCP
 - **AI-Powered Reasoning**: Sequential thinking to assess market impact
 - **Arbitrage Detection**: Compare expected vs. actual market prices
+- **Web Dashboard**: Monitor system status and view alerts in real-time
+- **Telegram Notifications**: Instant alerts when opportunities are detected
 - **Automated Trading**: Execute trades on profitable opportunities
 - **Multi-Agent Development**: 7 specialized AI agents for autonomous development
 
@@ -58,6 +60,76 @@ An automated system that:
          │ Execution   │         │ Generation  │
          └─────────────┘         └─────────────┘
 ```
+
+## 🚀 Live Production Deployment
+
+**Production URL**: https://capstone-polymarket-arbitrage-agent-production.up.railway.app/
+
+The system is currently deployed and running on Railway, monitoring markets 24/7.
+
+### Web Dashboard
+
+Access the interactive web interface:
+
+- **Main Dashboard**: https://capstone-polymarket-arbitrage-agent-production.up.railway.app/
+- **API Documentation (Swagger)**: https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/docs
+- **Health Check**: https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/health
+
+**Available Endpoints**:
+- `GET /` - API information and available endpoints
+- `GET /api/health` - Health check status
+- `GET /api/status` - System status (worker, database, uptime)
+- `GET /api/alerts` - List all alerts with pagination
+- `GET /api/alerts/recent` - Get most recent alerts
+- `GET /api/alerts/{id}` - Get specific alert by ID
+- `GET /api/alerts/stats` - Alert statistics
+- `GET /api/metrics` - Performance metrics
+
+### 📱 Telegram Notifications
+
+Get instant alerts on your phone when arbitrage opportunities are detected!
+
+**Setup Instructions**:
+
+1. **Create a Telegram Bot**:
+   - Open Telegram and search for `@BotFather`
+   - Send `/newbot` and follow the prompts
+   - Copy the bot token
+
+2. **Get Your Chat ID**:
+   - Start a chat with your bot (send `/start`)
+   - Visit: `https://api.telegram.org/botYOUR_TOKEN/getUpdates`
+   - Find your numeric chat ID in the response
+
+3. **Configure Environment Variables**:
+   ```bash
+   TELEGRAM_BOT_TOKEN=your_bot_token_here
+   TELEGRAM_CHAT_ID=your_numeric_chat_id
+   TELEGRAM_ENABLED=true
+   TELEGRAM_MIN_SEVERITY=WARNING
+   ```
+
+4. **Test Your Configuration**:
+   ```bash
+   python scripts/test_telegram.py
+   ```
+
+**Alert Severity Levels**:
+- 🔴 **CRITICAL** - High confidence, high profit opportunities
+- ⚠️ **WARNING** - Medium confidence/profit (default)
+- ℹ️ **INFO** - Low confidence/profit (optional)
+
+For detailed setup instructions, see [Telegram Setup Guide](docs/notifications/telegram-setup-guide.md).
+
+### What's Running Now
+
+The deployed system is:
+1. Monitoring breaking news every 60 seconds
+2. Fetching Polymarket market data every 5 minutes
+3. Analyzing news impact using AI reasoning
+4. Detecting arbitrage opportunities
+5. Generating alerts and sending Telegram notifications
+6. Serving the monitoring dashboard 24/7
 
 ## Quick Start
 
@@ -103,6 +175,7 @@ POLYMARKET_GAMMA_HOST=gamma-api.polymarket.com
 
 # MCP Server Configuration
 BRAVE_API_KEY=your_brave_api_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
 
 # Application Settings
 LOG_LEVEL=INFO
@@ -110,6 +183,12 @@ ENVIRONMENT=development
 CONFIDENCE_THRESHOLD=0.7
 MIN_PROFIT_MARGIN=0.05
 MAX_POSITION_SIZE=1000
+
+# Telegram Notifications (Optional)
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+TELEGRAM_CHAT_ID=your_numeric_chat_id
+TELEGRAM_ENABLED=true
+TELEGRAM_MIN_SEVERITY=WARNING
 ```
 
 ### MCP Configuration
@@ -198,6 +277,55 @@ pytest tests/e2e/
 
 # Run with verbose output
 pytest -v
+```
+
+## 🚢 Deployment
+
+### Railway Deployment
+
+The system is deployed on Railway for continuous 24/7 operation.
+
+**Deployment Status**: ✅ **LIVE** - https://capstone-polymarket-arbitrage-agent-production.up.railway.app/
+
+**Quick Deploy**:
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login to Railway
+railway login
+
+# Initialize and deploy
+railway init
+railway up
+```
+
+**Required Railway Variables**:
+- `BRAVE_API_KEY` - Brave Search API key
+- `ANTHROPIC_API_KEY` - Anthropic API key
+- `TELEGRAM_BOT_TOKEN` - Telegram bot token (optional)
+- `TELEGRAM_CHAT_ID` - Telegram chat ID (optional)
+- `TELEGRAM_ENABLED` - Enable Telegram notifications (optional)
+- `TELEGRAM_MIN_SEVERITY` - Minimum alert severity (optional)
+
+For detailed deployment information, see:
+- [Railway Deployment Guide](docs/deployment/railway-deployment.md)
+- [Deployment Success Story](docs/deployment/DEPLOYMENT-SUCCESS.md)
+- [Telegram Setup Guide](docs/notifications/telegram-setup-guide.md)
+
+### Docker Deployment
+
+```bash
+# Build Docker image
+docker build -t polymarket-arbitrage .
+
+# Run container
+docker run -p 8080:8080 \
+  -e BRAVE_API_KEY=your_key \
+  -e ANTHROPIC_API_KEY=your_key \
+  -e TELEGRAM_BOT_TOKEN=your_token \
+  -e TELEGRAM_CHAT_ID=your_chat_id \
+  polymarket-arbitrage
 ```
 
 ## Development
@@ -312,5 +440,6 @@ For questions or issues, please open a GitHub issue or contact the maintainers.
 
 ---
 
-**Last Updated**: 2025-01-12
+**Last Updated**: 2026-01-13
+**Status**: ✅ Production Live on Railway
 **Repository**: https://github.com/nebellleben/capstone-polymarket-arbitrage-agent
