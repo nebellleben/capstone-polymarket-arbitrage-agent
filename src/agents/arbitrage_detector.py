@@ -52,37 +52,84 @@ class ArbitrageDetector:
         """
         opportunities = []
 
-        for impact in impacts:
+        logger.info(
+            "detect_opportunities_start",
+            total_impacts=len(impacts),
+            markets_available=len(market_data_map),
+            confidence_threshold=self.confidence_threshold,
+            min_profit_margin=self.min_profit_margin
+        )
+
+        for idx, impact in enumerate(impacts):
+            # Log each impact being evaluated
+            logger.info(
+                "evaluating_impact",
+                index=idx,
+                impact_id=impact.id,
+                market_id=impact.market_id,
+                relevance=impact.relevance,
+                confidence=impact.confidence,
+                expected_price=impact.expected_price
+            )
+
             # Filter by relevance and confidence
             if not impact.is_significant:
-                logger.debug(
+                logger.info(
                     "skipping_low_relevance",
                     impact_id=impact.id,
-                    relevance=impact.relevance
+                    relevance=impact.relevance,
+                    threshold=0.1
                 )
                 continue
 
             if impact.confidence < self.confidence_threshold:
-                logger.debug(
+                logger.info(
                     "skipping_low_confidence",
                     impact_id=impact.id,
-                    confidence=impact.confidence
+                    confidence=impact.confidence,
+                    threshold=self.confidence_threshold
                 )
                 continue
 
             # Get current market data
             market_data = market_data_map.get(impact.market_id)
             if not market_data:
-                logger.debug(
+                logger.info(
                     "no_market_data",
                     impact_id=impact.id,
                     market_id=impact.market_id
                 )
                 continue
 
+            logger.info(
+                "calculating_opportunity",
+                impact_id=impact.id,
+                market_id=impact.market_id,
+                current_price=market_data.yes_price,
+                expected_price=impact.expected_price
+            )
+
             # Calculate opportunity
             opportunity = self._calculate_opportunity(impact, market_data)
-            if opportunity and opportunity.is_profitable(self.min_profit_margin):
+
+            if not opportunity:
+                logger.warning(
+                    "opportunity_calculation_failed",
+                    impact_id=impact.id,
+                    market_id=impact.market_id
+                )
+                continue
+
+            profit_check = opportunity.is_profitable(self.min_profit_margin)
+            logger.info(
+                "opportunity_profit_check",
+                opportunity_id=opportunity.id,
+                potential_profit=opportunity.potential_profit,
+                min_profit_margin=self.min_profit_margin,
+                is_profitable=profit_check
+            )
+
+            if profit_check:
                 opportunities.append(opportunity)
                 logger.info(
                     "opportunity_detected",
@@ -91,6 +138,7 @@ class ArbitrageDetector:
                     current_price=opportunity.current_price,
                     expected_price=opportunity.expected_price,
                     discrepancy=opportunity.discrepancy,
+                    potential_profit=opportunity.potential_profit,
                     confidence=opportunity.confidence
                 )
 

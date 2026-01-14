@@ -61,9 +61,10 @@ async def startup_event():
     service_state.set_web_server_running(True)
 
     # Include routers (lazy import to avoid blocking startup)
-    from src.api.routes import alerts, metrics, status, telegram
+    from src.api.routes import alerts, markets, metrics, status, telegram
 
     app.include_router(alerts.router, prefix="/api", tags=["alerts"])
+    app.include_router(markets.router, prefix="/api", tags=["markets"])
     app.include_router(metrics.router, prefix="/api", tags=["metrics"])
     app.include_router(status.router, prefix="/api", tags=["status"])
     app.include_router(telegram.router, prefix="/api", tags=["telegram"])
@@ -136,10 +137,26 @@ async def shutdown_event():
         logger.error("database_close_failed", error=str(e))
 
 
-# Root endpoint
+# Root endpoint - serve dashboard
+from fastapi.responses import FileResponse
+from pathlib import Path as FilePath
+
 @app.get("/")
-async def root() -> dict[str, str]:
-    """Root endpoint with API information."""
+async def root():
+    """Serve the dashboard HTML."""
+    index_path = FilePath(__file__).parent / "static" / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    return {
+        "message": "Polymarket Arbitrage Agent API",
+        "version": "1.0.0",
+        "docs": "/api/docs",
+        "health": "/api/health",
+    }
+
+@app.get("/api")
+async def api_info() -> dict[str, str]:
+    """API information endpoint."""
     return {
         "message": "Polymarket Arbitrage Agent API",
         "version": "1.0.0",

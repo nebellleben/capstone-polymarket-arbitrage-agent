@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for Polymarket Arbitrage Agent MVP
-# Build: 2026-01-13-16:45 - Force Railway cache invalidation with latest code
+# Build: 2026-01-14-03:15 - Detection cycle interval set to 10 minutes (600s)
 # Stage 1: Builder
 FROM python:3.11-slim as builder
 

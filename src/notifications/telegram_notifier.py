@@ -74,10 +74,13 @@ class TelegramNotifier:
 
         # Check severity threshold
         if self._severity_below_threshold(alert.severity):
+            # Handle both Enum and string severity
+            severity_str = alert.severity.value if isinstance(alert.severity, AlertSeverity) else alert.severity
+            min_severity_str = self.min_severity.value if isinstance(self.min_severity, AlertSeverity) else self.min_severity
             logger.debug(
                 "telegram_notification_skipped",
                 alert_id=alert.id,
-                reason=f"Severity {alert.severity.value} below {self.min_severity.value}"
+                reason=f"Severity {severity_str} below {min_severity_str}"
             )
             return False
 
@@ -86,10 +89,12 @@ class TelegramNotifier:
             success = self._send_message(message)
 
             if success:
+                # Handle both Enum and string severity
+                severity_str = alert.severity.value if isinstance(alert.severity, AlertSeverity) else alert.severity
                 logger.info(
                     "telegram_alert_sent",
                     alert_id=alert.id,
-                    severity=alert.severity.value
+                    severity=severity_str
                 )
             else:
                 logger.error(
@@ -151,10 +156,13 @@ class TelegramNotifier:
 
         # Check severity threshold
         if self._severity_below_threshold(alert.severity):
+            # Handle both Enum and string severity
+            severity_str = alert.severity.value if isinstance(alert.severity, AlertSeverity) else alert.severity
+            min_severity_str = self.min_severity.value if isinstance(self.min_severity, AlertSeverity) else self.min_severity
             logger.debug(
                 "telegram_broadcast_skipped",
                 alert_id=alert.id,
-                reason=f"Severity {alert.severity.value} below {self.min_severity.value}"
+                reason=f"Severity {severity_str} below {min_severity_str}"
             )
             return {"success": False, "reason": "Severity below threshold"}
 
@@ -374,9 +382,11 @@ class TelegramNotifier:
         emoji = severity_emoji.get(alert.severity, "•")
 
         # Build message with Markdown formatting
+        # Handle both Enum and string severity
+        severity_str = alert.severity.value if isinstance(alert.severity, AlertSeverity) else alert.severity
         message = f"""{emoji} *{alert.title}*
 
-*Severity:* {alert.severity.value}
+*Severity:* {severity_str}
 *Confidence:* {alert.confidence:.1%}
 
 💼 *Market:*

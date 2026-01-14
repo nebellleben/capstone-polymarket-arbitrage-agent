@@ -49,8 +49,8 @@ class MarketImpact(BaseModel):
 
     @property
     def is_significant(self) -> bool:
-        """Whether impact is significant (relevance > 0.5)."""
-        return self.relevance > 0.5
+        """Whether impact is significant (relevance > 0.1 for MVP)."""
+        return self.relevance > 0.1
 
     @property
     def is_high_confidence(self) -> bool:

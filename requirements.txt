@@ -49,4 +49,4 @@ tenacity>=8.3.0
 structlog>=24.1.0
 
 # AI/ML
-anthropic>=0.40.0
+google-generativeai>=0.8.0

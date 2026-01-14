@@ -18,10 +18,22 @@
             </div>
         </header>
 
-        <!-- Main Grid -->
-        <div class="main-grid">
-            <!-- Status Panel -->
-            <div class="panel status-panel">
+        <!-- Navigation Tabs -->
+        <nav class="dashboard-nav">
+            <button class="nav-tab active" data-view="overview">Overview</button>
+            <button class="nav-tab" data-view="alerts">Alert History</button>
+            <button class="nav-tab" data-view="timeline">Timeline</button>
+            <button class="nav-tab" data-view="analytics">Analytics</button>
+            <button class="nav-tab" data-view="markets">Markets</button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Overview View -->
+            <section id="view-overview" class="view active">
+                <div class="main-grid">
+                    <!-- Status Panel -->
+                    <div class="panel status-panel">
                 <h2>System Status</h2>
                 <div class="status-content">
                     <div class="status-item">
@@ -97,7 +109,84 @@
                     </div>
                 </div>
             </div>
-        </div>
+                </div>
+            </section>
+
+            <!-- Alerts History View -->
+            <section id="view-alerts" class="view">
+                <div class="alerts-view-layout">
+                    <!-- Filter Panel -->
+                    <aside class="filter-sidebar">
+                        <div id="filter-panel"></div>
+                    </aside>
+
+                    <!-- Alerts List -->
+                    <div class="alerts-content">
+                        <div class="alerts-header">
+                            <h2>Alert History</h2>
+                            <div class="alerts-pagination">
+                                <button class="pagination-btn" id="prev-page" disabled>← Previous</button>
+                                <span class="pagination-info" id="pagination-info">Page 1</span>
+                                <button class="pagination-btn" id="next-page">Next →</button>
+                            </div>
+                        </div>
+                        <div id="alerts-history-container" class="alerts-container">
+                            <div class="loading">Loading alerts...</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Timeline View -->
+            <section id="view-timeline" class="view">
+                <div id="timeline-view"></div>
+            </section>
+
+            <!-- Analytics View -->
+            <section id="view-analytics" class="view">
+                <div class="analytics-grid">
+                    <div class="panel analytics-panel">
+                        <h2>Price Trends</h2>
+                        <div class="chart-controls">
+                            <label for="market-select">Select Market:</label>
+                            <select id="market-select" class="market-select">
+                                <option value="">Loading markets...</option>
+                            </select>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="price-trend-chart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="panel analytics-panel">
+                        <h2>Confidence vs. Discrepancy</h2>
+                        <div class="chart-wrapper">
+                            <canvas id="scatter-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Markets View -->
+            <section id="view-markets" class="view">
+                <div class="panel markets-panel">
+                    <div class="panel-header">
+                        <h2>Market Performance Leaderboard</h2>
+                        <div class="leaderboard-controls">
+                            <label for="leaderboard-sort">Sort by:</label>
+                            <select id="leaderboard-sort" class="sort-select">
+                                <option value="alert_count">Alert Count</option>
+                                <option value="avg_discrepancy">Avg Discrepancy</option>
+                                <option value="avg_confidence">Avg Confidence</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="markets-leaderboard" class="markets-leaderboard">
+                        <div class="loading">Loading leaderboard...</div>
+                    </div>
+                </div>
+            </section>
+        </main>
 
         <!-- Footer -->
         <footer class="footer">
@@ -108,5 +197,10 @@
 
     <script src="/static/app.js"></script>
     <script src="/static/charts.js"></script>
+    <script src="/static/alerts.js"></script>
+    <script src="/static/filters.js"></script>
+    <script src="/static/timeline.js"></script>
+    <script src="/static/visualizations.js"></script>
+    <script src="/static/views.js"></script>
 </body>
 </html>

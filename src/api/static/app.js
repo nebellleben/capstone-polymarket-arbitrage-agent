@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Set up event listeners
     document.getElementById('refresh-alerts').addEventListener('click', loadAlerts);
 
+    // Initialize navigation
+    initializeNavigation();
+
     // Initial data load
     await Promise.all([
         loadStatus(),
@@ -28,6 +31,339 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Update last update time
     updateLastUpdateTime();
 });
+
+/**
+ * Initialize navigation tabs
+ */
+function initializeNavigation() {
+    const tabs = document.querySelectorAll('.nav-tab');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            const viewName = e.target.dataset.view;
+            switchView(viewName);
+        });
+    });
+
+    // Check URL hash for initial view
+    const hash = window.location.hash.slice(1);
+    if (hash && ['overview', 'alerts', 'timeline', 'analytics', 'markets'].includes(hash)) {
+        switchView(hash);
+    }
+}
+
+/**
+ * Switch between views
+ */
+function switchView(viewName) {
+    console.log('Switching to view:', viewName);
+
+    // Hide all views
+    document.querySelectorAll('.view').forEach(view => {
+        view.classList.remove('active');
+    });
+
+    // Remove active class from all tabs
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+
+    // Show selected view
+    const selectedView = document.getElementById(`view-${viewName}`);
+    if (selectedView) {
+        selectedView.classList.add('active');
+    }
+
+    // Activate corresponding tab
+    const selectedTab = document.querySelector(`[data-view="${viewName}"]`);
+    if (selectedTab) {
+        selectedTab.classList.add('active');
+    }
+
+    // Update URL hash
+    window.location.hash = viewName;
+
+    // Load view-specific data
+    loadViewData(viewName);
+}
+
+/**
+ * Load data for specific view
+ */
+async function loadViewData(viewName) {
+    console.log('Loading data for view:', viewName);
+
+    switch (viewName) {
+        case 'overview':
+            // Already loaded on page init
+            break;
+
+        case 'alerts':
+            await loadAlertsHistoryView();
+            break;
+
+        case 'timeline':
+            await loadTimelineView();
+            break;
+
+        case 'analytics':
+            await loadAnalyticsView();
+            break;
+
+        case 'markets':
+            await loadMarketsView();
+            break;
+    }
+}
+
+/**
+ * Load alerts history view
+ */
+async function loadAlertsHistoryView() {
+    console.log('Loading alerts history view');
+
+    // Check if filter panel is initialized
+    const filterPanelContainer = document.getElementById('filter-panel');
+    if (!filterPanelContainer.hasAttribute('data-initialized')) {
+        // Initialize filter panel
+        const filterPanel = new FilterPanel('filter-panel', (filters) => {
+            // Reload alerts when filters change
+            loadAlertsHistory(filters);
+        });
+        filterPanel.initialize();
+        filterPanelContainer.setAttribute('data-initialized', 'true');
+
+        // Store globally for access
+        window.filterPanel = filterPanel;
+    }
+
+    // Load initial alerts
+    await loadAlertsHistory();
+}
+
+/**
+ * Load alerts history with filters
+ */
+async function loadAlertsHistory(filters = {}) {
+    try {
+        const params = new URLSearchParams({
+            limit: '50',
+            offset: '0'
+        });
+
+        // Add filters
+        if (filters.severity && filters.severity.length > 0) {
+            params.append('severity', filters.severity[0]);
+        }
+        if (filters.minConfidence !== undefined) {
+            params.append('min_confidence', filters.minConfidence);
+        }
+        if (filters.maxConfidence !== undefined) {
+            params.append('max_confidence', filters.maxConfidence);
+        }
+        if (filters.searchQuery) {
+            params.append('search_query', filters.searchQuery);
+        }
+
+        const response = await fetch(`${API_BASE}/alerts/history?${params}`);
+        const data = await response.json();
+
+        // Initialize alert cards manager
+        alertCards.initialize('alerts-history-container');
+        alertCards.clear();
+
+        // Add alerts
+        data.alerts.forEach(alert => {
+            alertCards.addAlert(alert);
+        });
+
+        // Update pagination info
+        document.getElementById('pagination-info').textContent =
+            `Showing ${data.alerts.length} of ${data.total} alerts`;
+
+    } catch (error) {
+        console.error('Failed to load alerts history:', error);
+        document.getElementById('alerts-history-container').innerHTML =
+            '<div class="loading">Failed to load alerts</div>';
+    }
+}
+
+/**
+ * Load timeline view
+ */
+async function loadTimelineView() {
+    console.log('Loading timeline view');
+
+    await timelineView.initialize();
+    await timelineView.loadTimeline();
+}
+
+/**
+ * Load analytics view
+ */
+async function loadAnalyticsView() {
+    console.log('Loading analytics view');
+
+    // Load markets for dropdown
+    try {
+        const response = await fetch(`${API_BASE}/markets/leaderboard?min_alerts=1&limit=50`);
+        const markets = await response.json();
+
+        const marketSelect = document.getElementById('market-select');
+        marketSelect.innerHTML = '<option value="">Select a market...</option>';
+
+        markets.forEach(market => {
+            const option = document.createElement('option');
+            option.value = market.market_id;
+            option.textContent = market.question.substring(0, 50) + '...';
+            marketSelect.appendChild(option);
+        });
+
+        // Listen for market selection
+        marketSelect.addEventListener('change', (e) => {
+            if (e.target.value) {
+                loadPriceTrendChart(e.target.value);
+            }
+        });
+
+        // Load scatter plot with all alerts
+        await loadScatterPlot();
+
+    } catch (error) {
+        console.error('Failed to load markets:', error);
+    }
+}
+
+/**
+ * Load confidence vs profit scatter plot
+ */
+async function loadScatterPlot() {
+    try {
+        // Fetch all alerts for scatter plot
+        const response = await fetch(`${API_BASE}/alerts/history?limit=200`);
+        const data = await response.json();
+
+        if (data.alerts.length === 0) {
+            console.log('No alerts for scatter plot');
+            return;
+        }
+
+        // Create scatter plot
+        confidenceProfitScatter.create(data.alerts);
+
+    } catch (error) {
+        console.error('Failed to load scatter plot:', error);
+    }
+}
+
+/**
+ * Load price trend chart for a market
+ */
+async function loadPriceTrendChart(marketId) {
+    try {
+        const response = await fetch(`${API_BASE}/alerts/price-trends?market_id=${marketId}`);
+        const data = await response.json();
+
+        // Use enhanced price trend chart
+        priceTrendChart.create(marketId, data);
+
+    } catch (error) {
+        console.error('Failed to load price trends:', error);
+    }
+}
+
+/**
+ * Load markets leaderboard view
+ */
+async function loadMarketsView() {
+    console.log('Loading markets view');
+
+    try {
+        const response = await fetch(`${API_BASE}/markets/leaderboard?min_alerts=1`);
+        const markets = await response.json();
+
+        const container = document.getElementById('markets-leaderboard');
+
+        if (markets.length === 0) {
+            container.innerHTML = '<div class="empty-state">No markets yet</div>';
+            return;
+        }
+
+        container.innerHTML = `
+            <table class="leaderboard-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Market</th>
+                        <th>Alerts</th>
+                        <th>Avg Discrepancy</th>
+                        <th>Avg Confidence</th>
+                        <th>Trend</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${markets.map((market, index) => `
+                        <tr>
+                            <td>${getRankEmoji(index + 1)}</td>
+                            <td>
+                                <div class="market-question">${escapeHtml(market.question)}</div>
+                            </td>
+                            <td><span class="badge">${market.alert_count}</span></td>
+                            <td class="${getDiscrepancyClass(market.avg_discrepancy)}">
+                                ${(market.avg_discrepancy * 100).toFixed(1)}%
+                            </td>
+                            <td>
+                                <div class="confidence-bar-container">
+                                    <div class="confidence-bar" style="width: ${market.avg_confidence * 100}%">
+                                        ${(market.avg_confidence * 100).toFixed(0)}%
+                                    </div>
+                                </div>
+                            </td>
+                            <td>${getTrendIcon(market.trend)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+
+    } catch (error) {
+        console.error('Failed to load markets leaderboard:', error);
+        document.getElementById('markets-leaderboard').innerHTML =
+            '<div class="loading">Failed to load leaderboard</div>';
+    }
+}
+
+/**
+ * Get rank emoji
+ */
+function getRankEmoji(rank) {
+    switch (rank) {
+        case 1: return '🥇';
+        case 2: return '🥈';
+        case 3: return '🥉';
+        default: return rank;
+    }
+}
+
+/**
+ * Get discrepancy CSS class
+ */
+function getDiscrepancyClass(discrepancy) {
+    if (discrepancy >= 0.15) return 'discrepancy-high';
+    if (discrepancy >= 0.08) return 'discrepancy-medium';
+    return 'discrepancy-low';
+}
+
+/**
+ * Get trend icon
+ */
+function getTrendIcon(trend) {
+    switch (trend) {
+        case 'up': return '📈';
+        case 'down': return '📉';
+        default: return '➡️';
+    }
+}
 
 // WebSocket connection
 function connectWebSocket() {
@@ -102,17 +438,25 @@ function handleWebSocketMessage(message) {
 async function loadStatus() {
     try {
         const response = await fetch(`${API_BASE}/status`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
         const status = await response.json();
 
         // Update status display
-        document.getElementById('uptime').textContent = formatUptime(status.uptime_seconds);
-        document.getElementById('cycles-completed').textContent = status.worker.current_cycle;
-        document.getElementById('worker-status').textContent = status.worker.status === 'running' ? '🟢 Running' : '🔴 Stopped';
-        document.getElementById('db-status').textContent = `${status.database.total_alerts} alerts, ${status.database.total_cycles} cycles`;
+        document.getElementById('uptime').textContent = formatUptime(status.uptime_seconds || 0);
+        document.getElementById('cycles-completed').textContent = status.worker?.current_cycle || 0;
+        document.getElementById('worker-status').textContent =
+            status.worker?.status === 'running' ? '🟢 Running' : '🔴 Stopped';
+        document.getElementById('db-status').textContent =
+            `${status.database?.total_alerts || 0} alerts, ${status.database?.total_cycles || 0} cycles`;
 
     } catch (error) {
         console.error('Failed to load status:', error);
         document.getElementById('worker-status').textContent = '⚠️ Error loading';
+        document.getElementById('db-status').textContent = '⚠️ Error loading';
     }
 }
 
@@ -145,20 +489,59 @@ async function loadAlerts() {
 async function loadMetrics() {
     try {
         const response = await fetch(`${API_BASE}/metrics?cycles=10`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
         const metrics = await response.json();
 
-        // Update metrics display
-        document.getElementById('avg-duration').textContent = `${metrics.performance.avg_cycle_duration_seconds.toFixed(1)}s`;
-        document.getElementById('avg-opportunities').textContent = metrics.performance.avg_opportunities_per_cycle.toFixed(1);
-        document.getElementById('avg-alerts').textContent = metrics.performance.avg_alerts_per_cycle.toFixed(1);
-        document.getElementById('total-errors').textContent = metrics.performance.total_errors;
+        // Check if we have data
+        if (!metrics.performance || Object.keys(metrics.performance).length === 0) {
+            setMetricsEmpty();
+            return;
+        }
 
-        // Update charts
-        updateCharts(metrics);
+        // Update metrics display
+        const avgDuration = metrics.performance.avg_cycle_duration_seconds ?? 0;
+        const avgOpportunities = metrics.performance.avg_opportunities_per_cycle ?? 0;
+        const avgAlerts = metrics.performance.avg_alerts_per_cycle ?? 0;
+        const totalErrors = metrics.performance.total_errors ?? 0;
+
+        document.getElementById('avg-duration').textContent = avgDuration > 0
+            ? `${avgDuration.toFixed(1)}s`
+            : 'No data';
+        document.getElementById('avg-opportunities').textContent = avgOpportunities > 0
+            ? avgOpportunities.toFixed(1)
+            : 'No data';
+        document.getElementById('avg-alerts').textContent = avgAlerts > 0
+            ? avgAlerts.toFixed(1)
+            : 'No data';
+        document.getElementById('total-errors').textContent = totalErrors;
+
+        // Update charts if we have data
+        if (metrics.period && metrics.period.cycles_analyzed > 0) {
+            updateCharts(metrics);
+        }
 
     } catch (error) {
         console.error('Failed to load metrics:', error);
+        setMetricsError();
     }
+}
+
+function setMetricsEmpty() {
+    document.getElementById('avg-duration').textContent = 'No cycles yet';
+    document.getElementById('avg-opportunities').textContent = 'No cycles yet';
+    document.getElementById('avg-alerts').textContent = 'No cycles yet';
+    document.getElementById('total-errors').textContent = '0';
+}
+
+function setMetricsError() {
+    document.getElementById('avg-duration').textContent = 'Error loading';
+    document.getElementById('avg-opportunities').textContent = 'Error loading';
+    document.getElementById('avg-alerts').textContent = 'Error loading';
+    document.getElementById('total-errors').textContent = '-';
 }
 
 // UI updates

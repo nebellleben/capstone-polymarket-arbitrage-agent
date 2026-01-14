@@ -63,12 +63,13 @@ class Alert(BaseModel):
         reasoning: str
     ) -> "Alert":
         """Create alert from opportunity."""
-        # Determine severity based on confidence and profit
-        if opportunity.confidence >= 0.8 and opportunity.potential_profit >= 0.1:
+        # Determine severity based on profit margin (MVP thresholds)
+        # For MVP with fallback reasoning (confidence ~0.4), prioritize profit over confidence
+        if opportunity.potential_profit >= 0.15:  # 15%+ profit = CRITICAL
             severity = AlertSeverity.CRITICAL
-        elif opportunity.confidence >= 0.7 and opportunity.potential_profit >= 0.05:
+        elif opportunity.potential_profit >= 0.05:  # 5%+ profit = WARNING
             severity = AlertSeverity.WARNING
-        else:
+        else:  # Below 5% profit = INFO
             severity = AlertSeverity.INFO
 
         direction_str = "up" if opportunity.expected_price > opportunity.current_price else "down"

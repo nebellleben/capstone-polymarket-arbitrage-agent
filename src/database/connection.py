@@ -16,6 +16,7 @@ import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 
+from src.utils.config import settings
 from src.utils.logging_config import logger
 
 
@@ -46,8 +47,8 @@ class DatabaseManager:
         self._session_factory = None
         self._db_path = None
 
-        # Get database path from environment or use default
-        data_dir = os.getenv("DATA_DIR", "/app/data")
+        # Get database path from settings
+        data_dir = settings.data_dir
         self._db_path = os.path.join(data_dir, "arbitrage.db")
 
         # Ensure data directory exists

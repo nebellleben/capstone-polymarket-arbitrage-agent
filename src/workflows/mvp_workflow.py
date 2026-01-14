@@ -137,8 +137,10 @@ class ArbitrageDetectionGraph:
                 for market in markets[:50]:  # Limit for MVP
                     try:
                         market_data = await client.get_market_data(market)
-                        self.market_data_cache[market.market_id] = market_data
-                        market_data_map[market.market_id] = market_data
+                        # Filter out markets with no liquidity (price = 0)
+                        if market_data.yes_price > 0:
+                            self.market_data_cache[market.market_id] = market_data
+                            market_data_map[market.market_id] = market_data
                     except Exception as e:
                         logger.warning(
                             "fetch_market_data_failed",

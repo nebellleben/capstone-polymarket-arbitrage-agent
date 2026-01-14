@@ -214,6 +214,248 @@ class AlertRepository:
         db = self.db or get_db().get_session().__enter__()
         return db.query(func.count(Alert.id)).scalar()
 
+    def search_alerts(
+        self,
+        search_query: Optional[str] = None,
+        severity: Optional[str] = None,
+        min_confidence: Optional[float] = None,
+        max_confidence: Optional[float] = None,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        market_id: Optional[str] = None,
+        sort_by: str = "timestamp",
+        sort_order: str = "desc",
+        limit: int = 50,
+        offset: int = 0
+    ) -> List[Alert]:
+        """
+        Search alerts with comprehensive filtering.
+
+        Args:
+            search_query: Full-text search across title, message, reasoning, news_title, market_question
+            severity: Filter by severity (INFO, WARNING, CRITICAL)
+            min_confidence: Minimum confidence level (0.0-1.0)
+            max_confidence: Maximum confidence level (0.0-1.0)
+            start_time: Filter alerts after this time
+            end_time: Filter alerts before this time
+            market_id: Filter by market ID
+            sort_by: Field to sort by (timestamp, confidence, discrepancy)
+            sort_order: Sort order (asc, desc)
+            limit: Maximum number of alerts to return (default: 50, max: 200)
+            offset: Pagination offset
+
+        Returns:
+            List of Alert objects matching the search criteria
+        """
+        db = self.db or get_db().get_session().__enter__()
+
+        # Start with base query
+        query = db.query(Alert)
+
+        # Apply full-text search across multiple fields
+        if search_query:
+            search_pattern = f"%{search_query}%"
+            query = query.filter(
+                db.or_(
+                    Alert.title.ilike(search_pattern),
+                    Alert.message.ilike(search_pattern),
+                    Alert.reasoning.ilike(search_pattern),
+                    Alert.news_title.ilike(search_pattern),
+                    Alert.market_question.ilike(search_pattern)
+                )
+            )
+
+        # Apply filters
+        if severity:
+            query = query.filter(Alert.severity == severity)
+
+        if min_confidence is not None:
+            query = query.filter(Alert.confidence >= min_confidence)
+
+        if max_confidence is not None:
+            query = query.filter(Alert.confidence <= max_confidence)
+
+        if start_time:
+            query = query.filter(Alert.timestamp >= start_time)
+
+        if end_time:
+            query = query.filter(Alert.timestamp <= end_time)
+
+        if market_id:
+            query = query.filter(Alert.market_id == market_id)
+
+        # Apply sorting
+        sort_column = getattr(Alert, sort_by, Alert.timestamp)
+        if sort_order == "desc":
+            query = query.order_by(sort_column.desc())
+        else:
+            query = query.order_by(sort_column.asc())
+
+        # Apply pagination
+        return query.limit(min(limit, 200)).offset(offset).all()
+
+    def get_timeline_aggregation(
+        self,
+        interval: str = "hour",
+        hours: int = 24,
+        severity: Optional[str] = None,
+        min_confidence: Optional[float] = None
+    ) -> Dict[str, Any]:
+        """
+        Aggregate alerts by time intervals for timeline view.
+
+        Args:
+            interval: Time grouping (hour, day, week)
+            hours: Number of hours to look back (1-168)
+            severity: Filter by severity
+            min_confidence: Minimum confidence level
+
+        Returns:
+            Dictionary with aggregated timeline data
+        """
+        db = self.db or get_db().get_session().__enter__()
+
+        # Calculate start time
+        from datetime import timedelta
+        start_time = datetime.utcnow() - timedelta(hours=hours)
+
+        # Build query with filters
+        query = db.query(Alert).filter(Alert.timestamp >= start_time)
+
+        if severity:
+            query = query.filter(Alert.severity == severity)
+
+        if min_confidence is not None:
+            query = query.filter(Alert.confidence >= min_confidence)
+
+        # Get all matching alerts
+        alerts = query.order_by(Alert.timestamp.desc()).all()
+
+        # Group by time interval
+        groups = {}
+        for alert in alerts:
+            # Determine time bucket based on interval
+            if interval == "hour":
+                bucket = alert.timestamp.strftime("%Y-%m-%d %H:00")
+            elif interval == "day":
+                bucket = alert.timestamp.strftime("%Y-%m-%d")
+            elif interval == "week":
+                # Get Monday of the week
+                week_start = alert.timestamp - timedelta(days=alert.timestamp.weekday())
+                bucket = week_start.strftime("%Y-%m-%d")
+            else:
+                bucket = alert.timestamp.strftime("%Y-%m-%d %H:00")
+
+            if bucket not in groups:
+                groups[bucket] = {
+                    "timestamp": bucket,
+                    "count": 0,
+                    "by_severity": {"INFO": 0, "WARNING": 0, "CRITICAL": 0},
+                    "sample_alerts": []
+                }
+
+            groups[bucket]["count"] += 1
+            groups[bucket]["by_severity"][alert.severity] += 1
+
+            # Keep first 3 alerts as samples
+            if len(groups[bucket]["sample_alerts"]) < 3:
+                groups[bucket]["sample_alerts"].append(alert)
+
+        # Sort groups by timestamp (newest first)
+        sorted_groups = sorted(
+            groups.values(),
+            key=lambda x: x["timestamp"],
+            reverse=True
+        )
+
+        return {
+            "interval": interval,
+            "start_time": start_time.isoformat(),
+            "end_time": datetime.utcnow().isoformat(),
+            "groups": sorted_groups
+        }
+
+    def get_alerts_by_market(
+        self,
+        market_id: str,
+        limit: int = 50
+    ) -> List[Alert]:
+        """
+        Get all alerts for a specific market.
+
+        Args:
+            market_id: Market identifier
+            limit: Maximum number of alerts to return
+
+        Returns:
+            List of Alert objects for the specified market
+        """
+        db = self.db or get_db().get_session().__enter__()
+
+        return db.query(Alert).filter(
+            Alert.market_id == market_id
+        ).order_by(
+            Alert.timestamp.desc()
+        ).limit(limit).all()
+
+    def count_search_results(
+        self,
+        search_query: Optional[str] = None,
+        severity: Optional[str] = None,
+        min_confidence: Optional[float] = None,
+        max_confidence: Optional[float] = None,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        market_id: Optional[str] = None
+    ) -> int:
+        """
+        Count total alerts matching search criteria (for pagination).
+
+        Args:
+            Same as search_alerts()
+
+        Returns:
+            Total count of alerts matching the criteria
+        """
+        db = self.db or get_db().get_session().__enter__()
+
+        # Start with base query
+        query = db.query(func.count(Alert.id))
+
+        # Apply full-text search across multiple fields
+        if search_query:
+            search_pattern = f"%{search_query}%"
+            query = query.filter(
+                db.or_(
+                    Alert.title.ilike(search_pattern),
+                    Alert.message.ilike(search_pattern),
+                    Alert.reasoning.ilike(search_pattern),
+                    Alert.news_title.ilike(search_pattern),
+                    Alert.market_question.ilike(search_pattern)
+                )
+            )
+
+        # Apply filters
+        if severity:
+            query = query.filter(Alert.severity == severity)
+
+        if min_confidence is not None:
+            query = query.filter(Alert.confidence >= min_confidence)
+
+        if max_confidence is not None:
+            query = query.filter(Alert.confidence <= max_confidence)
+
+        if start_time:
+            query = query.filter(Alert.timestamp >= start_time)
+
+        if end_time:
+            query = query.filter(Alert.timestamp <= end_time)
+
+        if market_id:
+            query = query.filter(Alert.market_id == market_id)
+
+        return query.scalar()
+
 
 class MetricsRepository:
     """

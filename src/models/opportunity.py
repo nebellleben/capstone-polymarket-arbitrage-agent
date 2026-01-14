@@ -35,7 +35,6 @@ class Opportunity(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     expires_at: datetime | None = Field(None, description="When opportunity expires")
 
-    @property
     def is_profitable(self, min_profit_margin: float = 0.05) -> bool:
         """Whether opportunity meets minimum profit threshold."""
         return self.potential_profit >= min_profit_margin

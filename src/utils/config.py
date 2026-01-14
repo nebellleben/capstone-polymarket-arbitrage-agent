@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     # Application
     log_level: str = Field(default="INFO", description="Logging level")
     environment: str = Field(default="development", description="Environment (development/production)")
+    data_dir: str = Field(default="./data", description="Directory for database and data files")
 
     # News Monitoring
     search_queries: str = Field(
@@ -27,8 +28,8 @@ class Settings(BaseSettings):
         description="Comma-separated search queries"
     )
     news_search_interval: int = Field(
-        default=60,
-        description="News search interval in seconds"
+        default=600,  # 10 minutes = 600 seconds (adjust as needed)
+        description="News search interval in seconds - controls how often detection cycles run"
     )
     news_max_results: int = Field(
         default=10,
@@ -81,9 +82,13 @@ class Settings(BaseSettings):
         default=None,
         description="Brave Search API key"
     )
-    anthropic_api_key: Optional[str] = Field(
+    gemini_api_key: Optional[str] = Field(
         default=None,
-        description="Anthropic API key for AI reasoning"
+        description="Gemini API key for AI reasoning"
+    )
+    gemini_model: str = Field(
+        default="gemini-2.5-flash",
+        description="Gemini model to use"
     )
     brave_search_timeout: int = Field(
         default=30,

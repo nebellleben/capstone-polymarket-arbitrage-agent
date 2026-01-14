@@ -121,14 +121,13 @@ class AlertGenerator:
         # Send Telegram notification
         if self.telegram_notifier and self.telegram_notifier.is_enabled():
             try:
-                # Broadcast to all subscribers
-                result = self.telegram_notifier.broadcast_alert(alert)
-                if result.get("success"):
+                # Send directly to configured chat
+                success = self.telegram_notifier.send_alert(alert)
+                if success:
                     logger.info(
-                        "telegram_broadcast_success",
+                        "telegram_sent",
                         alert_id=alert.id,
-                        total=result.get("total_subscribers", 0),
-                        success_count=result.get("success_count", 0)
+                        chat_id=self.telegram_notifier.chat_id
                     )
             except Exception as e:
                 logger.error("telegram_notification_failed", alert_id=alert.id, error=str(e))
@@ -266,7 +265,8 @@ Alert ID: {alert.id}
         total_confidence = 0.0
 
         for alert in self.alert_history:
-            severity = alert.severity.value
+            # Handle both Enum and string severity
+            severity = alert.severity.value if isinstance(alert.severity, AlertSeverity) else alert.severity
             by_severity[severity] = by_severity.get(severity, 0) + 1
             total_confidence += alert.confidence
 
@@ -285,7 +285,8 @@ Alert ID: {alert.id}
         self.alert_history.append(alert)
 
         # Update counts
-        severity = alert.severity.value
+        # Handle both Enum and string severity
+        severity = alert.severity.value if isinstance(alert.severity, AlertSeverity) else alert.severity
         self.alert_counts[severity] = self.alert_counts.get(severity, 0) + 1
 
         # Enforce retention limit
@@ -300,10 +301,12 @@ Alert ID: {alert.id}
 
     def _alert_to_dict(self, alert: Alert) -> dict[str, any]:
         """Convert alert to dictionary for JSON serialization."""
+        # Handle both Enum and string severity
+        severity = alert.severity.value if isinstance(alert.severity, AlertSeverity) else alert.severity
         return {
             "id": alert.id,
             "opportunity_id": alert.opportunity_id,
-            "severity": alert.severity.value,
+            "severity": severity,
             "title": alert.title,
             "message": alert.message,
             "news_url": str(alert.news_url),
