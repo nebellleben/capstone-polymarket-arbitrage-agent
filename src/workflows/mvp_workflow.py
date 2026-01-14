@@ -452,14 +452,23 @@ class ArbitrageDetectionGraph:
 
 async def main():
     """Main entry point for the arbitrage detection system."""
+    import sys
+
+    # Force flush to ensure this log appears
     logger.info("system_start")
+    sys.stderr.flush()
 
     graph = ArbitrageDetectionGraph()
+
+    # Force flush after graph initialization
+    sys.stderr.flush()
 
     # Run continuous cycles for deployment
     # For local testing (single cycle): run SINGLE_CYCLE=true python -m src.workflows.mvp_workflow
     import os
     if os.getenv("SINGLE_CYCLE", "false").lower() == "true":
+        logger.info("single_cycle_mode")
+        sys.stderr.flush()
         result = await graph.run_cycle(search_query="breaking news politics")
         logger.info("single_cycle_complete", result_summary={
             "news_articles": len(result['news_articles']),
@@ -468,7 +477,10 @@ async def main():
             "opportunities": len(result['opportunities']),
             "alerts": len(result['alerts'])
         })
+        sys.stderr.flush()
     else:
+        logger.info("continuous_mode", interval=settings.news_search_interval)
+        sys.stderr.flush()
         await graph.run_continuous(
             interval=settings.news_search_interval,
             max_cycles=None  # Run forever

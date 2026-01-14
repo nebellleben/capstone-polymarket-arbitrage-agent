@@ -1,6 +1,7 @@
 """Centralized logging configuration for the application."""
 
 import logging
+import sys
 import structlog
 
 from src.utils.config import settings
@@ -12,10 +13,12 @@ def configure_logging() -> None:
     This must be called before any logger is created to ensure
     consistent logging behavior across all modules.
     """
-    # Configure stdlib logging first
+    # Configure stdlib logging first with unbuffered output
     logging.basicConfig(
         level=getattr(logging, settings.log_level.upper()),
-        format="%(message)s"
+        format="%(message)s",
+        stream=sys.stderr,  # Use stderr for unbuffered output
+        force=True  # Force reconfiguration
     )
 
     # Configure structlog with processors that handle keyword arguments
@@ -34,6 +37,9 @@ def configure_logging() -> None:
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
+
+    # Immediately flush stderr to ensure logs appear in Docker
+    sys.stderr.flush()
 
 
 # Configure logging immediately on import
