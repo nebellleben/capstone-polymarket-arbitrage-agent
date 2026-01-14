@@ -67,6 +67,25 @@ The system is **currently deployed and running** on Railway, monitoring markets 
 
 **Production URL**: https://capstone-polymarket-arbitrage-agent-production.up.railway.app/
 
+### ⚠️ Known MVP Limitation
+
+**Current Status**: Core arbitrage detection and alerting works perfectly. Web dashboard alert history is temporarily unavailable due to a database persistence issue (see [KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) for details).
+
+**What Works**:
+- ✅ Arbitrage detection (8-14 opportunities per cycle)
+- ✅ Telegram notifications (real-time alerts)
+- ✅ System health monitoring
+- ✅ Railway logs (full alert history)
+
+**Alternative Monitoring**:
+```bash
+# View recent alerts in Railway logs
+railway logs --lines 100 | grep "alert_created"
+
+# Check system health
+curl https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/health
+```
+
 ### 📊 Test the Web Dashboard
 
 Visit the live web interface to see the system in action:
@@ -92,11 +111,7 @@ curl https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/s
 ```
 Shows worker status, database connection, and uptime.
 
-**4. See Recent Alerts**
-```bash
-curl https://capstone-polymarket-arbitrage-agent-production.up.railway.app/api/alerts/recent
-```
-Returns the most recent arbitrage opportunities detected.
+**Note**: Alert history APIs return empty results due to the known database issue. Use Railway logs or Telegram to monitor alerts.
 
 **5. Get Alert Statistics**
 ```bash
