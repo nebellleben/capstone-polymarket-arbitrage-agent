@@ -73,6 +73,7 @@ echo "Starting web server on port ${WEB_SERVER_PORT:-8080}..."
 uvicorn src.api.main:app \
     --host 0.0.0.0 \
     --port ${WEB_SERVER_PORT:-8080} \
+    --ws auto \
     --log-level info 2>&1 &
 WEB_PID=$!
 
