@@ -92,14 +92,16 @@ class DatabaseManager:
         if self._engine is None:
             if self._database_type == "postgresql":
                 # PostgreSQL with connection pooling
+                # Increased pool sizes to handle concurrent web server + worker access
                 self._engine = create_engine(
                     self._database_url,
                     echo=False,  # Set to True for SQL query logging
                     poolclass=QueuePool,
-                    pool_size=5,
-                    max_overflow=10,
+                    pool_size=20,  # Increased from 5 to handle more concurrent connections
+                    max_overflow=30,  # Increased from 10 to prevent pool exhaustion
                     pool_pre_ping=True,  # Verify connections before using
                     pool_recycle=3600,  # Recycle connections after 1 hour
+                    pool_timeout=30,  # Wait up to 30 seconds for connection
                 )
                 logger.info("database_engine_created", database="postgresql", pool_class="QueuePool")
             else:
