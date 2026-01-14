@@ -49,15 +49,22 @@ class AlertRepository:
         try:
             alert = Alert(**alert_dict)
             db.add(alert)
+
+            # Flush to send SQL to database
+            db.flush()
+
+            # Commit the transaction
             db.commit()
+
+            # Refresh to get database-generated values
             db.refresh(alert)
 
-            logger.debug("alert_saved", alert_id=alert.id)
+            logger.info("alert_saved", alert_id=alert.id, flush_success=True, commit_success=True)
             return alert
 
         except Exception as e:
             db.rollback()
-            logger.error("alert_save_failed", error=str(e))
+            logger.error("alert_save_failed", alert_id=alert_dict.get("id", "unknown"), error=str(e), exc_info=True)
             raise
 
     def save_batch(self, alerts: List[Dict[str, Any]]) -> int:
