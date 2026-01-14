@@ -20,7 +20,9 @@ class Settings(BaseSettings):
     # Application
     log_level: str = Field(default="INFO", description="Logging level")
     environment: str = Field(default="development", description="Environment (development/production)")
-    data_dir: str = Field(default="./data", description="Directory for database and data files")
+    # Critical: Use absolute path for shared database across worker and web server processes
+    # Set DATA_DIR env var to /app/data in production for shared access
+    data_dir: str = Field(default="/app/data", description="Directory for database and data files (MUST be absolute path for multi-process sharing)")
 
     # News Monitoring
     search_queries: str = Field(
