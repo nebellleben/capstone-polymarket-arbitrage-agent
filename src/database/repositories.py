@@ -128,7 +128,18 @@ class AlertRepository:
         if min_confidence is not None:
             query = query.filter(Alert.confidence >= min_confidence)
 
-        return query.limit(limit).all()
+        results = query.limit(limit).all()
+
+        # Debug logging
+        logger.info(
+            "get_recent_query",
+            limit=limit,
+            severity=severity,
+            results_count=len(results),
+            db_path=get_db()._db_path if get_db()._db_path else "unknown"
+        )
+
+        return results
 
     def get_all(
         self,
