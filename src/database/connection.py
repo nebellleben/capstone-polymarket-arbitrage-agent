@@ -64,13 +64,17 @@ class DatabaseManager:
     def engine(self) -> sqlalchemy.Engine:
         """Get or create database engine."""
         if self._engine is None:
+            from sqlalchemy.pool import NullPool
+
+            # Use NullPool for SQLite in multi-process environment
+            # This prevents stale connection issues between worker and web server
             self._engine = create_engine(
                 f"sqlite:///{self._db_path}",
                 connect_args={"check_same_thread": False},
                 echo=False,  # Set to True for SQL query logging
-                pool_pre_ping=True,
+                poolclass=NullPool,  # Disable pooling for multi-process SQLite
             )
-            logger.info("database_engine_created")
+            logger.info("database_engine_created", pool_class="NullPool")
         return self._engine
 
     @property
