@@ -108,9 +108,16 @@ class AlertGenerator:
             try:
                 alert_dict = self._alert_to_dict(alert, for_json=False)
                 self.alert_repo.save(alert_dict)
-                logger.debug("alert_persisted", alert_id=alert.id)
+                logger.info("alert_persisted", alert_id=alert.id)  # Changed to INFO for visibility
             except Exception as e:
-                logger.error("alert_persistence_failed", alert_id=alert.id, error=str(e))
+                logger.error("alert_persistence_failed", alert_id=alert.id, error=str(e), exc_info=True)
+        else:
+            logger.warning(
+                "alert_persistence_skipped",
+                alert_id=alert.id,
+                enable_persistence=self.enable_persistence,
+                alert_repo_exists=self.alert_repo is not None
+            )
 
         # Update shared state
         try:
