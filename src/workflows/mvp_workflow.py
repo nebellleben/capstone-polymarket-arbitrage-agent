@@ -78,6 +78,7 @@ class ArbitrageDetectionGraph:
         Search for breaking news using Brave Search.
 
         This node fetches recent news articles relevant to the search query.
+        Performs secondary validation to ensure articles are fresh enough.
         """
         logger.info("search_news_start", query=state["search_query"])
 
@@ -88,9 +89,29 @@ class ArbitrageDetectionGraph:
                 freshness=settings.news_freshness
             )
 
-            # Deduplicate against cache
-            new_articles = []
+            # SECONDARY VALIDATION: Double-check article ages
+            from datetime import datetime, timezone, timedelta
+            now = datetime.now(timezone.utc)
+            max_age = timedelta(days=settings.news_max_age_days)
+
+            validated_articles = []
+            filtered_count = 0
+
             for article in articles:
+                if article.published_date and (now - article.published_date.replace(tzinfo=timezone.utc)) <= max_age:
+                    validated_articles.append(article)
+                else:
+                    filtered_count += 1
+                    logger.warning(
+                        "article_filtered_secondary",
+                        title=article.title[:50],
+                        published_date=str(article.published_date),
+                        age_days=(now - article.published_date.replace(tzinfo=timezone.utc)).days if article.published_date else "unknown"
+                    )
+
+            # Deduplicate validated articles against cache
+            new_articles = []
+            for article in validated_articles:
                 article_url = str(article.url)
                 if article_url not in self.news_cache:
                     self.news_cache[article_url] = article
@@ -99,13 +120,15 @@ class ArbitrageDetectionGraph:
             state["news_articles"] = new_articles
             state["messages"].append({
                 "role": "system",
-                "content": f"Found {len(articles)} articles, {len(new_articles)} new"
+                "content": f"Found {len(articles)} articles, {len(validated_articles)} passed validation, {len(new_articles)} new"
             })
 
             logger.info(
                 "search_news_complete",
-                total=len(articles),
-                new=len(new_articles)
+                total_fetched=len(articles),
+                passed_validation=len(validated_articles),
+                filtered_out=filtered_count,
+                new_articles=len(new_articles)
             )
 
         except Exception as e:

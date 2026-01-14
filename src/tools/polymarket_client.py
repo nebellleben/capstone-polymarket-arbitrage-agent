@@ -181,6 +181,7 @@ class PolymarketGammaClient:
             data = await self._request("GET", "/markets", params=params)
 
             markets = []
+            rejected_markets = []
             # Handle both list and dict response formats
             market_list = data if isinstance(data, list) else data.get("data", [])
 
@@ -234,7 +235,11 @@ class PolymarketGammaClient:
 
                     # Only add markets with valid token IDs
                     if market.yes_token_id and market.no_token_id:
-                        markets.append(market)
+                        # VALIDATE: Check if market is fresh enough
+                        if self._is_market_fresh(market):
+                            markets.append(market)
+                        else:
+                            rejected_markets.append(market)
                     else:
                         logger.debug(
                             "skipping_market_no_tokens",
@@ -246,8 +251,11 @@ class PolymarketGammaClient:
 
             logger.info(
                 "markets_fetched",
-                count=len(markets),
-                active=active
+                total_parsed=len(markets) + len(rejected_markets),
+                accepted=len(markets),
+                rejected=len(rejected_markets),
+                rejection_rate=f"{len(rejected_markets) / (len(markets) + len(rejected_markets)) * 100:.1f}%" if (len(markets) + len(rejected_markets)) > 0 else "0%",
+                active_filter=active
             )
 
             return markets
@@ -417,6 +425,49 @@ class PolymarketGammaClient:
                 error=str(e)
             )
             raise
+
+    def _is_market_fresh(self, market: 'Market') -> bool:
+        """
+        Check if market is fresh enough to be considered.
+
+        Filters out:
+        - Inactive markets
+        - Markets that have already ended (end_date in past)
+
+        Args:
+            market: Market object to validate
+
+        Returns:
+            True if market is fresh, False otherwise
+        """
+        from datetime import timezone, timedelta
+
+        # Filter out inactive markets
+        if not market.active:
+            logger.debug(
+                "market_rejected_inactive",
+                market_id=market.market_id,
+                question=market.question[:50]
+            )
+            return False
+
+        # Filter out markets that have already ended
+        if market.end_date:
+            now = datetime.now(timezone.utc)
+            min_end_date = now + timedelta(days=settings.market_min_end_date_days)
+
+            # Check if market end date is in the past
+            if market.end_date.replace(tzinfo=timezone.utc) < min_end_date:
+                logger.info(
+                    "market_rejected_expired",
+                    market_id=market.market_id,
+                    question=market.question[:50],
+                    end_date=market.end_date.isoformat(),
+                    days_until_end=(market.end_date.replace(tzinfo=timezone.utc) - now).days
+                )
+                return False
+
+        return True
 
     def _parse_end_date(self, market_data: dict[str, Any]) -> Optional[datetime]:
         """Parse end date from market data."""

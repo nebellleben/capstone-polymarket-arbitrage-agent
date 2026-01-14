@@ -38,8 +38,12 @@ class Settings(BaseSettings):
         description="Maximum news articles per search"
     )
     news_freshness: str = Field(
-        default="pd",
+        default="pw",
         description="News freshness filter (pd=pw=pm)"
+    )
+    news_max_age_days: int = Field(
+        default=7,
+        description="Maximum article age in days (articles older than this are rejected)"
     )
 
     # Market Data
@@ -58,6 +62,10 @@ class Settings(BaseSettings):
     polymarket_rate_limit: int = Field(
         default=10,
         description="API rate limit (requests per second)"
+    )
+    market_min_end_date_days: int = Field(
+        default=0,
+        description="Minimum days until market end date (0 = ignore end date, filters out markets that have already ended)"
     )
 
     # Arbitrage Detection

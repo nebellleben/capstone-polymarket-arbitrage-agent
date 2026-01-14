@@ -98,8 +98,13 @@ class BraveSearchClient:
             raise
 
     def _parse_response(self, data: dict[str, Any]) -> list[NewsArticle]:
-        """Parse Brave Search API response into NewsArticle objects."""
+        """
+        Parse Brave Search API response into NewsArticle objects.
+
+        Filters out articles that are older than news_max_age_days.
+        """
         articles = []
+        rejected_count = 0
 
         # Parse web results
         web_results = data.get("web", {}).get("results", [])
@@ -111,7 +116,11 @@ class BraveSearchClient:
                     summary=result.get("description", ""),
                     source=self._extract_source(result.get("url", "")),
                 )
-                articles.append(article)
+
+                # Validate article age (web results don't have dates, so we reject them all)
+                # Only news results have reliable timestamps
+                logger.debug("web_result_no_date", url=result.get("url", ""))
+
             except Exception as e:
                 logger.warning("failed_to_parse_web_result", error=str(e))
 
@@ -126,9 +135,23 @@ class BraveSearchClient:
                     published_date=self._parse_news_age(result.get("age")),
                     source=self._extract_source(result.get("url", "")),
                 )
-                articles.append(article)
+
+                # VALIDATE: Check if article is fresh enough
+                if self._is_article_fresh(article.published_date):
+                    articles.append(article)
+                else:
+                    rejected_count += 1
+
             except Exception as e:
                 logger.warning("failed_to_parse_news_result", error=str(e))
+
+        logger.info(
+            "articles_parsed",
+            total_fetched=len(articles) + rejected_count,
+            accepted=len(articles),
+            rejected=rejected_count,
+            rejection_rate=f"{rejected_count / (len(articles) + rejected_count) * 100:.1f}%" if (len(articles) + rejected_count) > 0 else "0%"
+        )
 
         return articles
 
@@ -140,6 +163,40 @@ class BraveSearchClient:
             return parsed.netloc or "unknown"
         except Exception:
             return "unknown"
+
+    def _is_article_fresh(self, published_date: Optional[datetime]) -> bool:
+        """
+        Check if article is within acceptable age range.
+
+        Args:
+            published_date: Article publication date
+
+        Returns:
+            True if article is fresh enough, False otherwise
+        """
+        if published_date is None:
+            # If no date, reject it (safety first)
+            logger.warning("article_no_date", message="Article has no published date, rejecting")
+            return False
+
+        # Calculate age in days
+        from datetime import timezone, timedelta
+        now = datetime.now(timezone.utc)
+        article_age = (now - published_date.replace(tzinfo=timezone.utc)).days
+
+        # Check against threshold
+        max_age_days = settings.news_max_age_days
+
+        if article_age > max_age_days:
+            logger.info(
+                "article_rejected_old",
+                article_age_days=article_age,
+                max_age_days=max_age_days,
+                published_date=published_date.isoformat()
+            )
+            return False
+
+        return True
 
     def _parse_news_age(self, age_str: Optional[str]) -> Optional[datetime]:
         """Parse Brave Search age string to datetime."""
