@@ -31,9 +31,15 @@ _allowed_origins = _os.getenv("ALLOWED_ORIGINS", "").split(",")
 if not _allowed_origins[0]:  # If empty, use localhost for development
     _allowed_origins = ["http://localhost:8080", "http://localhost:3000"]
 
+# Always add the production Railway URL if not already present
+_production_url = "https://capstone-polymarket-arbitrage-agent-production.up.railway.app"
+if _production_url not in _allowed_origins:
+    _allowed_origins.append(_production_url)
+
+# Also allow WebSocket connections
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_allowed_origins,
+    allow_origins=_allowed_origins + ["*"],  # Allow all origins for WebSocket
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
@@ -61,7 +67,7 @@ async def startup_event():
     service_state.set_web_server_running(True)
 
     # Include routers (lazy import to avoid blocking startup)
-    from src.api.routes import alerts, debug, markets, metrics, status, telegram
+    from src.api.routes import alerts, debug, markets, metrics, status, telegram, websocket
 
     app.include_router(alerts.router, prefix="/api", tags=["alerts"])
     app.include_router(debug.router, prefix="/api", tags=["debug"])
@@ -69,6 +75,7 @@ async def startup_event():
     app.include_router(metrics.router, prefix="/api", tags=["metrics"])
     app.include_router(status.router, prefix="/api", tags=["status"])
     app.include_router(telegram.router, prefix="/api", tags=["telegram"])
+    app.include_router(websocket.router, prefix="/api", tags=["websocket"])
 
     logger.info("routers_included")
 
