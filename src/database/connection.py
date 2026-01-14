@@ -1,20 +1,23 @@
 """
 Database connection management for arbitrage detection system.
 
-This module provides SQLite database connection pooling, session management,
+This module provides database connection pooling, session management,
 and database initialization/migration support.
+
+Supports both SQLite (development) and PostgreSQL (production).
 """
 
 import os
 import threading
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
+from typing import Generator, Optional
 
 import aiosqlite
 import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.pool import QueuePool, NullPool
 
 from src.utils.config import settings
 from src.utils.logging_config import logger
@@ -24,8 +27,8 @@ class DatabaseManager:
     """
     Manages database connections and sessions.
 
-    Uses thread-local storage for session isolation and provides
-    both synchronous and asynchronous database access.
+    Supports both SQLite (for local development) and PostgreSQL (for production).
+    Automatically detects database type from environment variables.
     """
 
     _instance = None
@@ -46,35 +49,69 @@ class DatabaseManager:
         self._engine = None
         self._session_factory = None
         self._db_path = None
+        self._database_url = None
+        self._database_type = None
 
-        # Get database path from settings
-        data_dir = settings.data_dir
-        self._db_path = os.path.join(data_dir, "arbitrage.db")
-
-        # Ensure data directory exists
-        Path(data_dir).mkdir(parents=True, exist_ok=True)
+        # Detect database type from environment
+        self._detect_database_type()
 
         logger.info(
             "database_manager_init",
-            db_path=self._db_path,
-            data_dir=data_dir
+            database_type=self._database_type,
+            database_url=self._database_url if self._database_type == "postgresql" else self._db_path
         )
+
+    def _detect_database_type(self):
+        """Detect database type from environment variables."""
+        # Check for PostgreSQL URL (Railway sets this automatically)
+        database_url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
+
+        if database_url:
+            # Railway provides DATABASE_URL with postgres:// protocol
+            # Convert to sqlalchemy-compatible format if needed
+            if database_url.startswith("postgres://"):
+                database_url = database_url.replace("postgres://", "postgresql+psycopg2://", 1)
+
+            self._database_url = database_url
+            self._database_type = "postgresql"
+            logger.info("using_postgresql", database_url_present=True)
+        else:
+            # Fall back to SQLite for local development
+            data_dir = settings.data_dir
+            self._db_path = os.path.join(data_dir, "arbitrage.db")
+
+            # Ensure data directory exists
+            Path(data_dir).mkdir(parents=True, exist_ok=True)
+
+            self._database_type = "sqlite"
+            logger.info("using_sqlite", db_path=self._db_path)
 
     @property
     def engine(self) -> sqlalchemy.Engine:
         """Get or create database engine."""
         if self._engine is None:
-            from sqlalchemy.pool import NullPool
+            if self._database_type == "postgresql":
+                # PostgreSQL with connection pooling
+                self._engine = create_engine(
+                    self._database_url,
+                    echo=False,  # Set to True for SQL query logging
+                    poolclass=QueuePool,
+                    pool_size=5,
+                    max_overflow=10,
+                    pool_pre_ping=True,  # Verify connections before using
+                    pool_recycle=3600,  # Recycle connections after 1 hour
+                )
+                logger.info("database_engine_created", database="postgresql", pool_class="QueuePool")
+            else:
+                # SQLite with NullPool for multi-process compatibility
+                self._engine = create_engine(
+                    f"sqlite:///{self._db_path}",
+                    connect_args={"check_same_thread": False},
+                    echo=False,
+                    poolclass=NullPool,
+                )
+                logger.info("database_engine_created", database="sqlite", pool_class="NullPool")
 
-            # Use NullPool for SQLite in multi-process environment
-            # This prevents stale connection issues between worker and web server
-            self._engine = create_engine(
-                f"sqlite:///{self._db_path}",
-                connect_args={"check_same_thread": False},
-                echo=False,  # Set to True for SQL query logging
-                poolclass=NullPool,  # Disable pooling for multi-process SQLite
-            )
-            logger.info("database_engine_created", pool_class="NullPool")
         return self._engine
 
     @property
@@ -111,18 +148,22 @@ class DatabaseManager:
         finally:
             session.close()
 
-    async def get_async_connection(self) -> aiosqlite.Connection:
+    async def get_async_connection(self) -> Optional[aiosqlite.Connection]:
         """
-        Get an async SQLite connection.
+        Get an async SQLite connection (SQLite only).
 
         Returns:
-            aiosqlite.Connection: Async database connection
+            aiosqlite.Connection: Async database connection (None for PostgreSQL)
 
         Example:
             >>> async with db_manager.get_async_connection() as db:
             ...     await db.execute("SELECT * FROM alerts")
         """
-        return aiosqlite.connect(self._db_path)
+        if self._database_type == "sqlite":
+            return aiosqlite.connect(self._db_path)
+        else:
+            logger.warning("async_connection_not_supported", database=self._database_type)
+            return None
 
     def initialize_database(self):
         """
@@ -133,7 +174,7 @@ class DatabaseManager:
         """
         from src.database.models import Alert, CycleMetric
 
-        logger.info("database_init_start", db_path=self._db_path)
+        logger.info("database_init_start", database_type=self._database_type)
 
         try:
             # Create all tables
@@ -143,26 +184,29 @@ class DatabaseManager:
             # Create indexes
             self._create_indexes()
 
-            logger.info("database_init_complete")
+            logger.info("database_init_complete", database_type=self._database_type)
 
         except Exception as e:
-            logger.error("database_init_failed", error=str(e))
+            logger.error("database_init_failed", database_type=self._database_type, error=str(e))
             raise
 
     def _create_indexes(self):
         """Create database indexes for common queries."""
         from src.database.models import Alert, CycleMetric
 
-        with self.get_session() as session:
-            # Indexes are already defined in models, but we can verify
-            logger.info("database_indexes_verified")
+        try:
+            with self.get_session() as session:
+                # Indexes are already defined in models, but we can verify
+                logger.info("database_indexes_verified", database_type=self._database_type)
+        except Exception as e:
+            logger.warning("database_index_verify_failed", error=str(e))
 
     def close(self):
         """Close database connections and cleanup resources."""
         if self._engine is not None:
             self._engine.dispose()
             self._engine = None
-            logger.info("database_closed")
+            logger.info("database_closed", database_type=self._database_type)
 
 
 # Global database manager instance

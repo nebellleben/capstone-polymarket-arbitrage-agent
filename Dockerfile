@@ -1,16 +1,17 @@
 # Multi-stage Dockerfile for Polymarket Arbitrage Agent MVP
-# Build: 2026-01-14-04:00 - Fixed shared database path and CI/CD pipeline
+# Build: 2026-01-14 - PostgreSQL support added
 # Stage 1: Builder
 FROM python:3.11-slim as builder
 
 # Set build arguments
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Install build dependencies
+# Install build dependencies (including PostgreSQL dependencies)
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     make \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create virtual environment
@@ -25,9 +26,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Stage 2: Runtime
 FROM python:3.11-slim as runtime
 
-# Install runtime dependencies
+# Install runtime dependencies (including PostgreSQL client library)
 RUN apt-get update && apt-get install -y \
     curl \
+    libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security

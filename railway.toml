@@ -20,7 +20,6 @@ HEALTHCHECK_INTERVAL = "30s"
 HEALTHCHECK_TIMEOUT = "10s"
 HEALTHCHECK_RESTART_DELAY = "10s"
 
-# Persistent volume for database
-[[volumes]]
-name = "data"
-mount_to = "/app/data"
+# NOTE: PostgreSQL is configured as a separate service in Railway
+# Railway automatically sets DATABASE_URL environment variable
+# The app will auto-detect and use PostgreSQL when DATABASE_URL is present
