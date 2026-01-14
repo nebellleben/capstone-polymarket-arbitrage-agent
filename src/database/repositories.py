@@ -44,7 +44,9 @@ class AlertRepository:
         Returns:
             Alert: Created Alert ORM object
         """
-        db = self.db or get_db().get_session().__enter__()
+        session_context = get_db().get_session()
+        db = self.db or session_context.__enter__()
+        should_close = self.db is None
 
         try:
             alert = Alert(**alert_dict)
@@ -59,13 +61,19 @@ class AlertRepository:
             # Refresh to get database-generated values
             db.refresh(alert)
 
-            logger.info("alert_saved", alert_id=alert.id, flush_success=True, commit_success=True)
+            logger.info("alert_saved", alert_id=alert.id, flush_success=True, commit_success=True, session_closed=should_close)
             return alert
 
         except Exception as e:
             db.rollback()
             logger.error("alert_save_failed", alert_id=alert_dict.get("id", "unknown"), error=str(e), exc_info=True)
             raise
+        finally:
+            if should_close:
+                try:
+                    session_context.__exit__(None, None, None)
+                except Exception as e:
+                    logger.error("session_close_error", error=str(e))
 
     def save_batch(self, alerts: List[Dict[str, Any]]) -> int:
         """
@@ -125,28 +133,37 @@ class AlertRepository:
         Returns:
             List of Alert objects
         """
-        db = self.db or get_db().get_session().__enter__()
+        session_context = get_db().get_session()
+        db = self.db or session_context.__enter__()
+        should_close = self.db is None
 
-        query = db.query(Alert).order_by(Alert.timestamp.desc())
+        try:
+            query = db.query(Alert).order_by(Alert.timestamp.desc())
 
-        if severity:
-            query = query.filter(Alert.severity == severity)
+            if severity:
+                query = query.filter(Alert.severity == severity)
 
-        if min_confidence is not None:
-            query = query.filter(Alert.confidence >= min_confidence)
+            if min_confidence is not None:
+                query = query.filter(Alert.confidence >= min_confidence)
 
-        results = query.limit(limit).all()
+            results = query.limit(limit).all()
 
-        # Debug logging
-        logger.info(
-            "get_recent_query",
-            limit=limit,
-            severity=severity,
-            results_count=len(results),
-            db_path=get_db()._db_path if get_db()._db_path else "unknown"
-        )
+            # Debug logging
+            logger.info(
+                "get_recent_query",
+                limit=limit,
+                severity=severity,
+                results_count=len(results),
+                db_path=get_db()._db_path if get_db()._db_path else "unknown"
+            )
 
-        return results
+            return results
+        finally:
+            if should_close:
+                try:
+                    session_context.__exit__(None, None, None)
+                except Exception as e:
+                    logger.error("session_close_error", error=str(e))
 
     def get_all(
         self,
