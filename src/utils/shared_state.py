@@ -41,11 +41,16 @@ class ThreadSafeAlertStore:
         Args:
             alert: Alert object to add
         """
+        from src.models.alert import AlertSeverity
+
         with self._lock:
+            # Handle both Enum and string severity
+            severity = alert.severity.value if isinstance(alert.severity, AlertSeverity) else alert.severity
+
             alert_dict = {
                 "id": alert.id,
                 "opportunity_id": alert.opportunity_id,
-                "severity": alert.severity.value,
+                "severity": severity,
                 "title": alert.title,
                 "message": alert.message,
                 "news_url": str(alert.news_url),

@@ -106,7 +106,7 @@ class AlertGenerator:
         # Persist to database if enabled
         if self.enable_persistence and self.alert_repo:
             try:
-                alert_dict = self._alert_to_dict(alert)
+                alert_dict = self._alert_to_dict(alert, for_json=False)
                 self.alert_repo.save(alert_dict)
                 logger.debug("alert_persisted", alert_id=alert.id)
             except Exception as e:
@@ -193,7 +193,7 @@ Alert ID: {alert.id}
         if isinstance(alerts, Alert):
             alerts = [alerts]
 
-        data = [self._alert_to_dict(alert) for alert in alerts]
+        data = [self._alert_to_dict(alert, for_json=True) for alert in alerts]
         return json.dumps(data, indent=2, default=str)
 
     def export_json(self, alerts: list[Alert] | None = None) -> Path:
@@ -209,7 +209,7 @@ Alert ID: {alert.id}
         if alerts is None:
             alerts = self.alert_history
 
-        data = [self._alert_to_dict(alert) for alert in alerts]
+        data = [self._alert_to_dict(alert, for_json=True) for alert in alerts]
 
         with open(self.export_path, "w") as f:
             json.dump(data, f, indent=2, default=str)
@@ -299,10 +299,17 @@ Alert ID: {alert.id}
                 history_size=len(self.alert_history)
             )
 
-    def _alert_to_dict(self, alert: Alert) -> dict[str, any]:
-        """Convert alert to dictionary for JSON serialization."""
+    def _alert_to_dict(self, alert: Alert, for_json: bool = False) -> dict[str, any]:
+        """Convert alert to dictionary for JSON serialization or database persistence.
+
+        Args:
+            alert: Alert to convert
+            for_json: If True, convert datetime to ISO string (for JSON export)
+                      If False, keep datetime object (for database)
+        """
         # Handle both Enum and string severity
         severity = alert.severity.value if isinstance(alert.severity, AlertSeverity) else alert.severity
+
         return {
             "id": alert.id,
             "opportunity_id": alert.opportunity_id,
@@ -319,7 +326,7 @@ Alert ID: {alert.id}
             "expected_price": round(alert.expected_price, 4),
             "discrepancy": round(alert.discrepancy, 4),
             "recommended_action": alert.recommended_action,
-            "timestamp": alert.timestamp.isoformat()
+            "timestamp": alert.timestamp.isoformat() if for_json else alert.timestamp
         }
 
     def clear_history(self):
