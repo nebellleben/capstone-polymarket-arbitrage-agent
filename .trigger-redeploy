@@ -1,0 +1,2 @@
+# Trigger Railway redeploy to pick up DATABASE_URL
+# This file is created to trigger a redeploy after PostgreSQL was added
