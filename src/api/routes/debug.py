@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 from pathlib import Path
 import os
+import glob
 
 from src.database.connection import get_db
 from src.database.repositories import AlertRepository
@@ -25,6 +26,16 @@ async def debug_database():
     file_size = 0
     if db_exists:
         file_size = os.path.getsize(db_path)
+
+    # Search for ALL database files in container
+    all_db_files = []
+    for db_file in glob.glob("/app/**/*.db", recursive=True):
+        stat = os.stat(db_file)
+        all_db_files.append({
+            "path": db_file,
+            "size": stat.st_size,
+            "modified": stat.st_mtime
+        })
 
     # Check database schema
     tables = []
@@ -55,6 +66,7 @@ async def debug_database():
             "database_path": db_path,
             "file_exists": db_exists,
             "file_size_bytes": file_size,
+            "all_db_files": all_db_files,
             "tables": tables,
             "row_counts": row_counts,
             "total_alerts_in_db": count,
@@ -68,6 +80,7 @@ async def debug_database():
             "database_path": db_path,
             "file_exists": db_exists,
             "file_size_bytes": file_size,
+            "all_db_files": all_db_files,
             "tables": tables,
             "row_counts": row_counts,
             "error": str(e)
