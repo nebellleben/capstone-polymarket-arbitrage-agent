@@ -68,6 +68,15 @@ echo "Starting detection worker..."
 python -m src.workflows.mvp_workflow &
 WORKER_PID=$!
 
+# Verify worker started
+sleep 3
+if ! kill -0 $WORKER_PID 2>/dev/null; then
+    echo "✗ ERROR: Worker failed to start or exited immediately"
+    echo "Check logs above for Python errors"
+    exit 1
+fi
+echo "✓ Worker process started successfully (PID: $WORKER_PID)"
+
 # Start web server
 echo "Starting web server on port ${WEB_SERVER_PORT:-8080}..."
 uvicorn src.api.main:app \

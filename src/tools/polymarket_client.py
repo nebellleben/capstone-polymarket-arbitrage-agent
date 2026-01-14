@@ -433,6 +433,8 @@ class PolymarketGammaClient:
         Filters out:
         - Inactive markets
         - Markets that have already ended (end_date in past)
+        - Markets with missing/invalid end dates
+        - Markets with clearly outdated end dates (e.g., 2020, 2021)
 
         Args:
             market: Market object to validate
@@ -451,21 +453,41 @@ class PolymarketGammaClient:
             )
             return False
 
-        # Filter out markets that have already ended
-        if market.end_date:
-            now = datetime.now(timezone.utc)
-            min_end_date = now + timedelta(days=settings.market_min_end_date_days)
+        # Validate end date exists and is reasonable
+        if not market.end_date:
+            logger.warning(
+                "market_rejected_no_end_date",
+                market_id=market.market_id,
+                question=market.question[:50]
+            )
+            return False
 
-            # Check if market end date is in the past
-            if market.end_date.replace(tzinfo=timezone.utc) < min_end_date:
-                logger.info(
-                    "market_rejected_expired",
-                    market_id=market.market_id,
-                    question=market.question[:50],
-                    end_date=market.end_date.isoformat(),
-                    days_until_end=(market.end_date.replace(tzinfo=timezone.utc) - now).days
-                )
-                return False
+        now = datetime.now(timezone.utc)
+        market_end_date = market.end_date.replace(tzinfo=timezone.utc)
+
+        # Filter out markets that have already ended
+        min_end_date = now + timedelta(days=settings.market_min_end_date_days)
+        if market_end_date < min_end_date:
+            logger.info(
+                "market_rejected_expired",
+                market_id=market.market_id,
+                question=market.question[:50],
+                end_date=market.end_date.isoformat(),
+                days_until_end=(market_end_date - now).days
+            )
+            return False
+
+        # Filter out clearly outdated markets (e.g., from 2020, 2021)
+        # If end date year is 2023 or earlier, reject it
+        if market_end_date.year <= 2023:
+            logger.warning(
+                "market_rejected_outdated_year",
+                market_id=market.market_id,
+                question=market.question[:50],
+                end_date=market.end_date.isoformat(),
+                end_year=market_end_date.year
+            )
+            return False
 
         return True
 

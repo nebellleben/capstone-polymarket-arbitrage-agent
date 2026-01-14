@@ -47,10 +47,18 @@ class ArbitrageDetectionGraph:
         # Build the workflow graph
         self.graph = self._build_graph()
 
-        # In-memory state
+        # In-memory state - clear on startup to prevent stale data
         self.news_cache: dict[str, NewsArticle] = {}
         self.market_cache: dict[str, Market] = {}
         self.market_data_cache: dict[str, MarketData] = {}
+
+        logger.info(
+            "workflow_initialized",
+            caches_cleared=True,
+            news_cache_size=0,
+            market_cache_size=0,
+            market_data_cache_size=0
+        )
 
     def _build_graph(self) -> StateGraph:
         """Build the LangGraph workflow."""
@@ -148,10 +156,17 @@ class ArbitrageDetectionGraph:
 
         try:
             async with self.polymarket_client as client:
-                # Fetch active markets
+                # Fetch active markets (API will filter by freshness)
                 markets = await client.get_markets(active=True, limit=100)
 
-                # Update cache
+                # Additional validation: log market details for debugging
+                logger.info(
+                    "markets_before_validation",
+                    count=len(markets),
+                    sample_questions=[m.question[:50] for m in markets[:3]]
+                )
+
+                # Update cache with validated markets
                 for market in markets:
                     self.market_cache[market.market_id] = market
 
@@ -177,7 +192,8 @@ class ArbitrageDetectionGraph:
                 logger.info(
                     "fetch_markets_complete",
                     markets=len(markets),
-                    with_prices=len(market_data_map)
+                    with_prices=len(market_data_map),
+                    sample_questions=[m.question[:50] for m in markets[:3]]
                 )
 
         except Exception as e:
