@@ -384,7 +384,17 @@ class ArbitrageDetectionGraph:
 
                 logger.info("cycle_begin", number=cycle_count)
 
-                await self.run_cycle()
+                try:
+                    await self.run_cycle()
+                except Exception as cycle_error:
+                    # Log cycle error but continue running
+                    logger.error(
+                        "cycle_failed",
+                        cycle_number=cycle_count,
+                        error=str(cycle_error),
+                        error_type=type(cycle_error).__name__
+                    )
+                    # Continue to next cycle despite failure
 
                 if max_cycles and cycle_count >= max_cycles:
                     logger.info("max_cycles_reached", count=cycle_count)
@@ -397,7 +407,7 @@ class ArbitrageDetectionGraph:
             logger.info("continuous_stop", cycles_completed=cycle_count)
 
         except Exception as e:
-            logger.error("continuous_error", error=str(e))
+            logger.error("continuous_error", error=str(e), error_type=type(e).__name__)
             raise
 
 
