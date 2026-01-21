@@ -408,6 +408,8 @@ class ArbitrageDetectionGraph:
             interval: Seconds between cycles (defaults to news_search_interval)
             max_cycles: Maximum number of cycles (None = infinite)
         """
+        from src.utils.shared_state import get_service_state
+
         cycle_interval = interval or settings.news_search_interval
         cycle_count = 0
 
@@ -416,6 +418,16 @@ class ArbitrageDetectionGraph:
             interval=cycle_interval,
             max_cycles=max_cycles or "infinite"
         )
+
+        # Background task to update heartbeat every 10 seconds
+        async def heartbeat_task():
+            service_state = get_service_state()
+            while True:
+                await asyncio.sleep(10)
+                service_state._write_worker_status_file()
+
+        # Start heartbeat task
+        heartbeat = asyncio.create_task(heartbeat_task())
 
         try:
             while True:
@@ -448,6 +460,14 @@ class ArbitrageDetectionGraph:
         except Exception as e:
             logger.error("continuous_error", error=str(e), error_type=type(e).__name__)
             raise
+
+        finally:
+            # Cancel heartbeat task on exit
+            heartbeat.cancel()
+            try:
+                await heartbeat
+            except asyncio.CancelledError:
+                pass
 
 
 async def main():

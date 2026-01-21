@@ -1,18 +1,25 @@
 """
 Thread-safe shared state for arbitrage detection system.
 
-This module provides singleton classes for managing in-memory state
+This module provides singleton classes for managing state
 shared between the background worker and web server, with proper
-locking for concurrent access.
+locking for concurrent access and file-based cross-process state.
 """
 
+import os
 import threading
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from src.models.alert import Alert
 from src.utils.logging_config import logger
+
+# File-based state directory for cross-process communication
+STATE_DIR = Path(os.environ.get("STATE_DIR", "/tmp/state"))
+STATE_DIR.mkdir(exist_ok=True)
+WORKER_STATUS_FILE = STATE_DIR / "worker_status.json"
 
 
 class ThreadSafeAlertStore:
@@ -210,6 +217,9 @@ class ServiceState:
 
     Singleton class for maintaining service-wide state including
     worker status, uptime, and health metrics.
+
+    Uses file-based state for cross-process communication between
+    the worker and web server.
     """
 
     _instance = None
@@ -236,6 +246,37 @@ class ServiceState:
 
         logger.info("service_state_initialized")
 
+    def _read_worker_status_file(self) -> Optional[Dict[str, Any]]:
+        """Read worker status from file for cross-process communication."""
+        try:
+            if WORKER_STATUS_FILE.exists():
+                import json
+                with open(WORKER_STATUS_FILE, 'r') as f:
+                    data = json.load(f)
+                # Check if the worker is still alive (heartbeat within last 30 seconds)
+                heartbeat = data.get("last_heartbeat")
+                if heartbeat:
+                    heartbeat_time = datetime.fromisoformat(heartbeat)
+                    if (datetime.utcnow() - heartbeat_time).total_seconds() < 30:
+                        return data
+        except Exception as e:
+            logger.debug("failed_to_read_worker_status", error=str(e))
+        return None
+
+    def _write_worker_status_file(self) -> None:
+        """Write worker status to file for cross-process communication."""
+        try:
+            import json
+            with open(WORKER_STATUS_FILE, 'w') as f:
+                json.dump({
+                    "worker_running": self._worker_running,
+                    "current_cycle": self._current_cycle,
+                    "last_heartbeat": datetime.utcnow().isoformat(),
+                    "last_cycle_time": self._last_cycle_time.isoformat() if self._last_cycle_time else None,
+                }, f)
+        except Exception as e:
+            logger.error("failed_to_write_worker_status", error=str(e))
+
     @property
     def uptime_seconds(self) -> float:
         """Get service uptime in seconds."""
@@ -250,6 +291,15 @@ class ServiceState:
         """
         with self._lock:
             self._worker_running = running
+            # Write to file for cross-process communication
+            if running:
+                self._write_worker_status_file()
+            else:
+                # Remove status file if worker stopped
+                try:
+                    WORKER_STATUS_FILE.unlink(missing_ok=True)
+                except Exception:
+                    pass
             logger.info("worker_status_changed", running=running)
 
     def set_web_server_running(self, running: bool) -> None:
@@ -273,6 +323,9 @@ class ServiceState:
         with self._lock:
             self._current_cycle += 1
             self._last_cycle_time = datetime.utcnow()
+            # Update worker status file with new cycle info
+            if self._worker_running:
+                self._write_worker_status_file()
             logger.debug("cycle_incremented", cycle=self._current_cycle)
             return self._current_cycle
 
@@ -284,12 +337,25 @@ class ServiceState:
             Dictionary with service status information
         """
         with self._lock:
+            # Check worker status file for cross-process state
+            worker_status_from_file = self._read_worker_status_file()
+            if worker_status_from_file:
+                # Use the cross-process values
+                worker_running = worker_status_from_file.get("worker_running", False)
+                current_cycle = worker_status_from_file.get("current_cycle", 0)
+                last_cycle_time = worker_status_from_file.get("last_cycle_time")
+            else:
+                # Fall back to in-process values
+                worker_running = self._worker_running
+                current_cycle = self._current_cycle
+                last_cycle_time = self._last_cycle_time.isoformat() if self._last_cycle_time else None
+
             return {
                 "uptime_seconds": round(self.uptime_seconds, 2),
-                "worker_running": self._worker_running,
+                "worker_running": worker_running,
                 "web_server_running": self._web_server_running,
-                "current_cycle": self._current_cycle,
-                "last_cycle_time": self._last_cycle_time.isoformat() if self._last_cycle_time else None,
+                "current_cycle": current_cycle,
+                "last_cycle_time": last_cycle_time,
                 "start_time": self._start_time.isoformat(),
             }
 
@@ -301,7 +367,13 @@ class ServiceState:
             True if both worker and web server are running
         """
         with self._lock:
-            return self._worker_running and self._web_server_running
+            # Check worker status file for cross-process state
+            worker_status_from_file = self._read_worker_status_file()
+            if worker_status_from_file:
+                worker_running = worker_status_from_file.get("worker_running", False)
+            else:
+                worker_running = self._worker_running
+            return worker_running and self._web_server_running
 
 
 # Global singleton instances
