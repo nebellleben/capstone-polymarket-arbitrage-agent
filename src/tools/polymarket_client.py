@@ -157,7 +157,7 @@ class PolymarketGammaClient:
         Fetch list of markets from Gamma API.
 
         Args:
-            active: Filter for active/inactive markets
+            active: Filter for active/inactive markets (NOTE: API uses 'closed' param internally)
             limit: Maximum number of markets to return
             offset: Pagination offset
             tag: Filter by tag
@@ -170,7 +170,9 @@ class PolymarketGammaClient:
         """
         try:
             params = {
-                "active": str(active).lower(),
+                # Use 'closed=false' instead of 'active=true' to get current markets
+                # The 'active' parameter returns old markets from 2020-2021
+                "closed": str(not active).lower(),
                 "limit": min(limit, 100),
                 "offset": offset
             }
@@ -478,8 +480,8 @@ class PolymarketGammaClient:
             return False
 
         # Filter out clearly outdated markets (e.g., from 2020, 2021)
-        # If end date year is 2023 or earlier, reject it
-        if market_end_date.year <= 2023:
+        # If end date year is 2024 or earlier, reject it (updated from 2023 since we're in 2025)
+        if market_end_date.year <= 2024:
             logger.warning(
                 "market_rejected_outdated_year",
                 market_id=market.market_id,
@@ -492,14 +494,37 @@ class PolymarketGammaClient:
         return True
 
     def _parse_end_date(self, market_data: dict[str, Any]) -> Optional[datetime]:
-        """Parse end date from market data."""
+        """Parse end date from market data.
+
+        Handles multiple formats:
+        - ISO string: "2020-11-04T00:00:00Z" (from endDate field)
+        - Unix timestamp: 1604452800 (from end_date field)
+        - Millisecond timestamp: 1604452800000
+        """
+        # Try camelCase 'endDate' first (what the API actually returns)
+        end_date_str = market_data.get("endDate")
+        if end_date_str:
+            try:
+                # Parse ISO 8601 string
+                if isinstance(end_date_str, str):
+                    from datetime import datetime as dt
+                    # Handle timezone-aware strings
+                    if end_date_str.endswith('Z'):
+                        end_date_str = end_date_str[:-1] + '+00:00'
+                    return dt.fromisoformat(end_date_str)
+            except (ValueError, OSError):
+                pass
+
+        # Fallback to snake_case 'end_date' (timestamp format)
         end_timestamp = market_data.get("end_date")
         if end_timestamp:
             try:
                 # Convert milliseconds to seconds if needed
-                if end_timestamp > 1000000000000:  # Milliseconds
-                    end_timestamp = end_timestamp / 1000
-                return datetime.fromtimestamp(end_timestamp)
+                if isinstance(end_timestamp, (int, float)):
+                    if end_timestamp > 1000000000000:  # Milliseconds
+                        end_timestamp = end_timestamp / 1000
+                    return datetime.fromtimestamp(end_timestamp)
             except (ValueError, OSError):
-                return None
+                pass
+
         return None

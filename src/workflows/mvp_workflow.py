@@ -218,9 +218,9 @@ class ArbitrageDetectionGraph:
 
         impacts = []
 
-        # Limit combinations for MVP
+        # Limit combinations for MVP - increased from 10 to 50 for better coverage
         max_news = min(len(state["news_articles"]), 5)
-        max_markets = min(len(state["markets"]), 10)
+        max_markets = min(len(state["markets"]), 50)
 
         for i, news in enumerate(state["news_articles"][:max_news]):
             for j, market in enumerate(state["markets"][:max_markets]):

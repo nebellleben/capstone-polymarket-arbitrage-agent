@@ -58,7 +58,7 @@ class BraveSearchClient:
                 "count": min(count, 50),
                 "text_decorations": False,
                 "search_lang": "en",
-                "result_filter": "news,web",
+                "result_filter": "news",  # Only news results have reliable timestamps
                 "freshness": freshness,
                 "offset": offset
             }
@@ -205,21 +205,22 @@ class BraveSearchClient:
 
         # Parse strings like "2h ago", "1d ago", "1w ago"
         try:
+            from datetime import timedelta
             age_str = age_str.lower().replace(" ", "")
 
             now = datetime.utcnow()
 
             if age_str.endswith("h") or age_str.endswith("hours"):
                 hours = int(age_str.replace("h", "").replace("hours", ""))
-                return now.replace(hour=now.hour - hours)
+                return now - timedelta(hours=hours)
 
             if age_str.endswith("d") or age_str.endswith("days"):
                 days = int(age_str.replace("d", "").replace("days", ""))
-                return now.replace(day=now.day - days)
+                return now - timedelta(days=days)
 
             if age_str.endswith("w") or age_str.endswith("weeks"):
                 weeks = int(age_str.replace("w", "").replace("weeks", ""))
-                return now.replace(week=now.week - weeks)
+                return now - timedelta(weeks=weeks)
 
             return None
 

@@ -26,7 +26,7 @@ class Settings(BaseSettings):
 
     # News Monitoring
     search_queries: str = Field(
-        default="breaking news politics",
+        default="politics,trump,economy,crypto",
         description="Comma-separated search queries"
     )
     news_search_interval: int = Field(
