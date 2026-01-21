@@ -199,28 +199,43 @@ class BraveSearchClient:
         return True
 
     def _parse_news_age(self, age_str: Optional[str]) -> Optional[datetime]:
-        """Parse Brave Search age string to datetime."""
+        """Parse Brave Search age string to datetime.
+
+        Handles formats like:
+        - "5 hours ago"
+        - "2h ago"
+        - "1 day ago"
+        - "30m ago"
+        """
         if not age_str:
             return None
 
-        # Parse strings like "2h ago", "1d ago", "1w ago"
+        # Parse strings like "2h ago", "1d ago", "5 hours ago", "30m ago"
         try:
             from datetime import timedelta
-            age_str = age_str.lower().replace(" ", "")
+            age_str = age_str.lower().strip()
+
+            # Remove "ago" suffix
+            if age_str.endswith(" ago"):
+                age_str = age_str[:-4].strip()
 
             now = datetime.utcnow()
 
-            if age_str.endswith("h") or age_str.endswith("hours"):
-                hours = int(age_str.replace("h", "").replace("hours", ""))
-                return now - timedelta(hours=hours)
+            # Try parsing with regex
+            import re
+            match = re.match(r'(\d+)\s*(h|hour|hours|m|min|minutes|d|day|days|w|week|weeks)s?', age_str)
+            if match:
+                value = int(match.group(1))
+                unit = match.group(2)
 
-            if age_str.endswith("d") or age_str.endswith("days"):
-                days = int(age_str.replace("d", "").replace("days", ""))
-                return now - timedelta(days=days)
-
-            if age_str.endswith("w") or age_str.endswith("weeks"):
-                weeks = int(age_str.replace("w", "").replace("weeks", ""))
-                return now - timedelta(weeks=weeks)
+                if unit.startswith('h'):
+                    return now - timedelta(hours=value)
+                elif unit.startswith('m'):
+                    return now - timedelta(minutes=value)
+                elif unit.startswith('d'):
+                    return now - timedelta(days=value)
+                elif unit.startswith('w'):
+                    return now - timedelta(weeks=value)
 
             return None
 
