@@ -104,29 +104,31 @@ async def get_recent_alerts(
     """
     alert_repo = AlertRepository()
 
-    alerts = alert_repo.get_recent(limit=limit, severity=severity)
+    # get_recent now returns dictionaries, not ORM objects
+    alert_dicts = alert_repo.get_recent(limit=limit, severity=severity)
 
-    # Convert ORM objects to response models
+    # Convert dictionaries to response models
     alert_responses = [
         AlertResponse(
-            id=alert.id,
-            opportunity_id=alert.opportunity_id,
-            severity=alert.severity,
-            title=alert.title,
-            message=alert.message,
-            news_url=alert.news_url,
-            news_title=alert.news_title,
-            market_id=alert.market_id,
-            market_question=alert.market_question,
-            reasoning=alert.reasoning,
-            confidence=alert.confidence,
-            current_price=alert.current_price,
-            expected_price=alert.expected_price,
-            discrepancy=alert.discrepancy,
-            recommended_action=alert.recommended_action,
-            timestamp=alert.timestamp,
+            id=alert_dict["id"],
+            opportunity_id=alert_dict["opportunity_id"],
+            severity=alert_dict["severity"],
+            title=alert_dict["title"],
+            message=alert_dict["message"],
+            news_url=alert_dict["news_url"],
+            news_title=alert_dict["news_title"],
+            market_id=alert_dict["market_id"],
+            market_question=alert_dict["market_question"],
+            reasoning=alert_dict["reasoning"],
+            confidence=alert_dict["confidence"],
+            current_price=alert_dict["current_price"],
+            expected_price=alert_dict["expected_price"],
+            discrepancy=alert_dict["discrepancy"],
+            recommended_action=alert_dict["recommended_action"],
+            # Parse ISO string back to datetime for response model
+            timestamp=datetime.fromisoformat(alert_dict["timestamp"]) if alert_dict.get("timestamp") else None,
         )
-        for alert in alerts
+        for alert_dict in alert_dicts
     ]
 
     return alert_responses
@@ -408,28 +410,29 @@ async def get_alert(alert_id: str) -> AlertResponse:
         HTTPException: If alert not found (404)
     """
     alert_repo = AlertRepository()
-    alert = alert_repo.get_by_id(alert_id)
+    alert_dict = alert_repo.get_by_id(alert_id)
 
-    if not alert:
+    if not alert_dict:
         from fastapi import HTTPException
 
         raise HTTPException(status_code=404, detail=f"Alert {alert_id} not found")
 
     return AlertResponse(
-        id=alert.id,
-        opportunity_id=alert.opportunity_id,
-        severity=alert.severity,
-        title=alert.title,
-        message=alert.message,
-        news_url=alert.news_url,
-        news_title=alert.news_title,
-        market_id=alert.market_id,
-        market_question=alert.market_question,
-        reasoning=alert.reasoning,
-        confidence=alert.confidence,
-        current_price=alert.current_price,
-        expected_price=alert.expected_price,
-        discrepancy=alert.discrepancy,
-        recommended_action=alert.recommended_action,
-        timestamp=alert.timestamp,
+        id=alert_dict["id"],
+        opportunity_id=alert_dict["opportunity_id"],
+        severity=alert_dict["severity"],
+        title=alert_dict["title"],
+        message=alert_dict["message"],
+        news_url=alert_dict["news_url"],
+        news_title=alert_dict["news_title"],
+        market_id=alert_dict["market_id"],
+        market_question=alert_dict["market_question"],
+        reasoning=alert_dict["reasoning"],
+        confidence=alert_dict["confidence"],
+        current_price=alert_dict["current_price"],
+        expected_price=alert_dict["expected_price"],
+        discrepancy=alert_dict["discrepancy"],
+        recommended_action=alert_dict["recommended_action"],
+        # Parse ISO string back to datetime for response model
+        timestamp=datetime.fromisoformat(alert_dict["timestamp"]) if alert_dict.get("timestamp") else None,
     )

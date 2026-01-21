@@ -103,7 +103,7 @@ class AlertRepository:
             logger.error("alerts_batch_save_failed", error=str(e))
             raise
 
-    def get_by_id(self, alert_id: str) -> Optional[Alert]:
+    def get_by_id(self, alert_id: str) -> Optional[Dict[str, Any]]:
         """
         Get alert by ID.
 
@@ -111,17 +111,49 @@ class AlertRepository:
             alert_id: Alert identifier
 
         Returns:
-            Alert object or None
+            Alert dictionary or None
         """
-        db = self.db or get_db().get_session().__enter__()
-        return db.query(Alert).filter(Alert.id == alert_id).first()
+        session_context = get_db().get_session()
+        db = self.db or session_context.__enter__()
+        should_close = self.db is None
+
+        try:
+            alert = db.query(Alert).filter(Alert.id == alert_id).first()
+            if not alert:
+                return None
+
+            # Convert to dictionary before closing session
+            return {
+                "id": alert.id,
+                "opportunity_id": alert.opportunity_id,
+                "severity": alert.severity,
+                "title": alert.title,
+                "message": alert.message,
+                "news_url": alert.news_url,
+                "news_title": alert.news_title,
+                "market_id": alert.market_id,
+                "market_question": alert.market_question,
+                "reasoning": alert.reasoning,
+                "confidence": round(alert.confidence, 4) if alert.confidence else 0.0,
+                "current_price": round(alert.current_price, 4) if alert.current_price else 0.0,
+                "expected_price": round(alert.expected_price, 4) if alert.expected_price else 0.0,
+                "discrepancy": round(alert.discrepancy, 4) if alert.discrepancy else 0.0,
+                "recommended_action": alert.recommended_action,
+                "timestamp": alert.timestamp.isoformat() if alert.timestamp else None,
+            }
+        finally:
+            if should_close:
+                try:
+                    session_context.__exit__(None, None, None)
+                except Exception as e:
+                    logger.error("session_close_error", error=str(e))
 
     def get_recent(
         self,
         limit: int = 10,
         severity: Optional[str] = None,
         min_confidence: Optional[float] = None
-    ) -> List[Alert]:
+    ) -> List[Dict[str, Any]]:
         """
         Get recent alerts with optional filtering.
 
@@ -131,7 +163,7 @@ class AlertRepository:
             min_confidence: Minimum confidence level
 
         Returns:
-            List of Alert objects
+            List of Alert dictionaries (not ORM objects)
         """
         session_context = get_db().get_session()
         db = self.db or session_context.__enter__()
@@ -148,16 +180,39 @@ class AlertRepository:
 
             results = query.limit(limit).all()
 
+            # Convert to dictionaries BEFORE closing the session
+            # This prevents DetachedInstanceError
+            result_dicts = []
+            for alert in results:
+                result_dicts.append({
+                    "id": alert.id,
+                    "opportunity_id": alert.opportunity_id,
+                    "severity": alert.severity,
+                    "title": alert.title,
+                    "message": alert.message,
+                    "news_url": alert.news_url,
+                    "news_title": alert.news_title,
+                    "market_id": alert.market_id,
+                    "market_question": alert.market_question,
+                    "reasoning": alert.reasoning,
+                    "confidence": round(alert.confidence, 4) if alert.confidence else 0.0,
+                    "current_price": round(alert.current_price, 4) if alert.current_price else 0.0,
+                    "expected_price": round(alert.expected_price, 4) if alert.expected_price else 0.0,
+                    "discrepancy": round(alert.discrepancy, 4) if alert.discrepancy else 0.0,
+                    "recommended_action": alert.recommended_action,
+                    "timestamp": alert.timestamp.isoformat() if alert.timestamp else None,
+                })
+
             # Debug logging
             logger.info(
                 "get_recent_query",
                 limit=limit,
                 severity=severity,
-                results_count=len(results),
+                results_count=len(result_dicts),
                 db_path=get_db()._db_path if get_db()._db_path else "unknown"
             )
 
-            return results
+            return result_dicts
         finally:
             if should_close:
                 try:
