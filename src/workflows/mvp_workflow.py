@@ -458,6 +458,11 @@ async def main():
     logger.info("system_start")
     sys.stderr.flush()
 
+    # Set worker status to running
+    from src.utils.shared_state import get_service_state
+    service_state = get_service_state()
+    service_state.set_worker_running(True)
+
     graph = ArbitrageDetectionGraph()
 
     # Force flush after graph initialization
